@@ -1,0 +1,31 @@
+schema_version = "1.0.0"
+
+id = "blender_openvr"
+version = "1.0.0"
+name = "Blender OpenVR"
+tagline = "Use OpenVR trackers and devices directly in Blender"
+maintainer = "Ethan Porcaro <ethan@varrett.com>"
+tags = ["Animation", "Tracking"]
+
+type = "add-on"
+blender_version_min = "4.0.0"  # Probably earlier, maybe change
+platforms = ["windows-x64", "linux-x64"]  # Technically, Linux works. Mac is no longer supoprted by Valve
+
+license = [
+    "SPDX:GPL-3.0-or-later",
+]
+
+wheels = [
+    "./wheels/openvr-2.5.102-py3-none-any.whl"
+]
+
+[build]
+paths_exclude_pattern = [
+  "images/",  # Docs
+  "__pycache__/",
+  ".*",
+  "*.zip",
+]
+
+[permissions]
+files = "Load SteamVR controller and tracker models"  # Because of potential licensing issues, we cannot bundle them
