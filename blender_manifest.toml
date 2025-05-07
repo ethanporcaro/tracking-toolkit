@@ -8,7 +8,7 @@ maintainer = "Ethan Porcaro <ethan@varrett.com>"
 tags = ["Animation", "Tracking"]
 
 type = "add-on"
-blender_version_min = "4.0.0"  # Probably earlier, maybe change
+blender_version_min = "4.2.0"
 platforms = ["windows-x64", "linux-x64"]  # Technically, Linux works. Mac is no longer supoprted by Valve
 
 license = [
