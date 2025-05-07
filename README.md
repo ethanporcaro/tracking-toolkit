@@ -100,7 +100,7 @@ Q: Can I record data at a different frame rate than my scene?
 A: No. This is a limitation of Blender's API. It is difficult to run a continuous process without freezing up the interface. A solution is being sought after.
 
 ## Credits
-**Huge** credits to [shteeve](https://blenderartists.org/u/shteeve) and [toyxyz](https://blenderartists.org/u/toyxyz) at [blenderartists.org](https://blenderartists.org/) for the research and basis of this extension.
+**Huge** credits to [shteeve](https://blenderartists.org/u/shteeve) and [toyxyz](https://blenderartists.org/u/toyxyz) at [blenderartists.org](https://blenderartists.org/) for the [research and basis of this extension](https://blenderartists.org/t/openvr-tracker-streaming/1236428).
 
 This code was rewritten by me, but shares many design choices, naming, etc. from their prototypes.
 
