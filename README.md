@@ -107,3 +107,17 @@ This code was rewritten by me, but shares many design choices, naming, etc. from
 Because the [Blender Extensions](https://extensions.blender.org/) platform [requires GPL licenses](https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html) for code, and since the actual code in this repo is written by me, I feel I have the right to licence this repo under the [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
 
 That isn't to say that the aforementioned developers had a **huge** impact on this project, as well as other users in the thread.
+
+## License
+
+This extension is licensed under [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
+
+```text
+Copyright (C) <year> <name of author>
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+```
