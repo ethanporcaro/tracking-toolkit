@@ -129,13 +129,14 @@ class ToggleCalibrationOperator(bpy.types.Operator):
     def obj_t_to_prop(obj: bpy.types.Object, prop: OVRTransform):
         prop.location = obj.location
         prop.rotation = obj.rotation_euler
-        prop.scale = obj.scale
+        # Scale shouldn't be applicable to calibration, and OpenVR will sometimes provide non-1 scale factors.
+        # Just keep it as is, since some armatures depend on scale and it causes issues.
 
     @staticmethod
     def prop_t_to_obj(prop: OVRTransform, obj: bpy.types.Object):
         obj.location = prop.location
         obj.rotation_euler = prop.rotation
-        obj.scale = prop.scale
+        # Same as above, skip scale.
 
     def restore_calibration_transforms(self, ovr_context):
         # Restore transform of trackers
