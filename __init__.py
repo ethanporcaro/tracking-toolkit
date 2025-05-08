@@ -87,8 +87,14 @@ def load_trackers(ovr_context: OVRContext, reset=False):
 
 
 def track_trackers(ovr_context: OVRContext):
+    system = openvr.VRSystem()
     poses, _ = openvr.VRCompositor().waitGetPoses([], None)
+
     for tracker in ovr_context.trackers:
+        tracker.connected = bool(system.isTrackedDeviceConnected(tracker.index))
+        if not tracker.connected:
+            continue
+
         absolute_pose = poses[tracker.index].mDeviceToAbsoluteTracking
 
         mat = Matrix([list(absolute_pose[0]), list(absolute_pose[1]), list(absolute_pose[2]), [0, 0, 0, 1]])
@@ -141,9 +147,13 @@ class ToggleCalibrationOperator(bpy.types.Operator):
     def restore_calibration_transforms(self, ovr_context):
         # Restore transform of trackers
         for tracker in ovr_context.trackers:
-            tracker_name = tracker.name
+            if not tracker.connected:
+                continue
 
+            tracker_name = tracker.name
             tracker_obj = bpy.data.objects.get(tracker_name)
+            if not tracker_obj:
+                continue
 
             # Save original transforms
             self.obj_t_to_prop(tracker_obj, tracker.target.transform)
@@ -154,9 +164,13 @@ class ToggleCalibrationOperator(bpy.types.Operator):
     def save_calibration_transforms(self, ovr_context):
         # Save transform of trackers
         for tracker in ovr_context.trackers:
-            tracker_name = tracker.name
+            if not tracker.connected:
+                continue
 
+            tracker_name = tracker.name
             tracker_obj = bpy.data.objects.get(tracker_name)
+            if not tracker_obj:
+                continue
 
             # Save calibration transforms
             self.obj_t_to_prop(tracker_obj, tracker.target.calibration_transform)
