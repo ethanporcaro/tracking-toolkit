@@ -1,4 +1,4 @@
-# Blender Open VR
+# Blender OpenVR
 
 ## Setup
 
