@@ -87,8 +87,8 @@ def load_trackers(ovr_context: OVRContext, reset=False):
 
 
 def track_trackers(ovr_context: OVRContext):
+    poses, _ = openvr.VRCompositor().waitGetPoses([], None)
     for tracker in ovr_context.trackers:
-        poses, _ = openvr.VRCompositor().waitGetPoses([], None)
         absolute_pose = poses[tracker.index].mDeviceToAbsoluteTracking
 
         mat = Matrix([list(absolute_pose[0]), list(absolute_pose[1]), list(absolute_pose[2]), [0, 0, 0, 1]])
