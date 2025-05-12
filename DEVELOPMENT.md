@@ -1,5 +1,8 @@
 # Development
 
+The extension is split into a bunch of different files. Each time you make a change, you will have to reload scripts.
+To do so, click `(Blender Icon) > System > Reload Scripts`. I personally mapped this to `F8` for convenience.
+
 ## Release
 
 Before packaging or running from source, execute these commands to fetch dependencies:
