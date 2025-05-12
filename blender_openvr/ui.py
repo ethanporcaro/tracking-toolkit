@@ -42,7 +42,8 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         layout.label(text="Blender OpenVR")
 
         # Toggle active button
-        activate_label = "Stop OpenVR" if ovr_context.enabled else "Start OpenVR"
+        # It's super annoying to have Blender not save the state of this button on save, so we just label it funny
+        activate_label = "Disconnect/Reset OpenVR" if ovr_context.enabled else "Start/Connect OpenVR"
         layout.operator(ToggleActiveOperator.bl_idname, text=activate_label)
 
         if not ovr_context.enabled:
