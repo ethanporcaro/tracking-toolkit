@@ -28,8 +28,11 @@ class OVRTracker(bpy.types.PropertyGroup):
 class OVRContext(bpy.types.PropertyGroup):
     enabled: bpy.props.BoolProperty(name="OpenVR active", default=False)
     calibration_stage: bpy.props.IntProperty(name="Stage number of OpenVR Calibration", default=0)
+    recording: bpy.props.BoolProperty(name="OpenVR recording", default=False)
 
     trackers: bpy.props.CollectionProperty(type=OVRTracker)
     selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0)
 
     offset: bpy.props.PointerProperty(type=OVRTransform, name="Tracker offset")
+
+    record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)
