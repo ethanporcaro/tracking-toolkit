@@ -69,7 +69,13 @@ You can scale the `OVR Root` empty to fix most scale issues. Location and Rotati
 
 ## Usage
 
-You can press the space bar to start streaming data from OpenVR. If Auto Keying is on, it will start inserting keyframes for the target (opaque) models. It doesn't use any fancy keying or NLA features, it simply (over)writes the transformations.
+You can press the `Start Recording` button to start writing keyframes to the object. It will clear the existing ones for the current action!
+
+The data is recorded in sub-frames and won't necessarily match your framerate. It is saved as fast as OpenVR provides it. The viewport will max out at 60fps, but the data is recorded and applied at OpenVR's precision.
+
+When you press the space bar, the realtime tracking will temporarily pause and the recorded take will play.
+
+It is encouraged to save each successful take to an NLA track, so it doesn't get overwritten.
 
 ## Troubleshooting
 
@@ -83,8 +89,6 @@ If in doubt, open up the console window with `Window > Toggle System Console` an
 
 **If your steam installation is in a different directory than `C:/Program Files (x86)/Steam/steamapps/common/SteamVR`, you will need to go into the source code and correct the path at the top.** I will try to put this in the settings menu eventually.
 
-If the tracking is coming out weird, your scene may be too complicated to run at realtime. Try using the `Simplfy` options in the `Render Properties` panel.
-
 ## Probably Common Questions
 
 Q: Can I offset location and rotation?
@@ -95,9 +99,9 @@ Q: Will other controller models show besides the generic HMD, OG Vive Controller
 
 A: Not currently. This may be implemented in the future.
 
-Q: Can I record data at a different frame rate than my scene?
+Q: Will my scene animations play during recording?
 
-A: No. This is a limitation of Blender's API. It is difficult to run a continuous process without freezing up the interface. A solution is being sought after.
+A: No. That may change in the future if needed.
 
 ## Credits
 **Huge** credits to [shteeve](https://blenderartists.org/u/shteeve) and [toyxyz](https://blenderartists.org/u/toyxyz) at [blenderartists.org](https://blenderartists.org/) for the [research and basis of this extension](https://blenderartists.org/t/openvr-tracker-streaming/1236428).

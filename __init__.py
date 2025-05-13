@@ -8,12 +8,15 @@ if "bpy" in locals():
             print(f"Reloading {name}")
             del sys.modules[name]
 
+import bpy
+
 from .blender_openvr.operators import (
     CreateRefsOperator,
     ResetTrackersOperator,
     ReloadTrackersOperator,
     ToggleActiveOperator,
-    ToggleCalibrationOperator
+    ToggleCalibrationOperator,
+    ToggleRecordOperator
 )
 from .blender_openvr.properties import (
     OVRContext,
@@ -21,26 +24,8 @@ from .blender_openvr.properties import (
     OVRTarget,
     OVRTransform
 )
-from .blender_openvr.tracking import track_trackers
 from .blender_openvr.ui import PANEL_UL_TrackerList, OpenVRPanel
-
-import bpy
-from bpy.app.handlers import persistent
-
-
-@persistent
-def on_frame(scene: bpy.types.Scene):
-    """
-    Handler for Blender frame play
-    """
-    ovr_context: OVRContext = scene.OVRContext
-    if not ovr_context.enabled:
-        return
-
-    if ovr_context.calibration_stage != 0:
-        return
-
-    track_trackers(ovr_context)
+from .blender_openvr.tracking import stop_recording, stop_preview
 
 
 def register():
@@ -58,12 +43,10 @@ def register():
     bpy.utils.register_class(ToggleActiveOperator)
     bpy.utils.register_class(CreateRefsOperator)
     bpy.utils.register_class(ReloadTrackersOperator)
+    bpy.utils.register_class(ToggleRecordOperator)
 
     # Contexts
     bpy.types.Scene.OVRContext = bpy.props.PointerProperty(type=OVRContext)
-
-    # Events
-    bpy.app.handlers.frame_change_post.append(on_frame)
 
     # UI
     bpy.utils.register_class(PANEL_UL_TrackerList)
@@ -73,17 +56,17 @@ def register():
 def unregister():
     print("Unloading Blender OpenVR...")
 
+    stop_preview()
+
     # UI
     bpy.utils.unregister_class(PANEL_UL_TrackerList)
     bpy.utils.unregister_class(OpenVRPanel)
-
-    # Events
-    bpy.app.handlers.frame_change_post.remove(on_frame)
 
     # Contexts
     del bpy.types.Scene.OVRContext
 
     # Classes
+    bpy.utils.unregister_class(ToggleRecordOperator)
     bpy.utils.unregister_class(ReloadTrackersOperator)
     bpy.utils.unregister_class(CreateRefsOperator)
     bpy.utils.unregister_class(ToggleActiveOperator)

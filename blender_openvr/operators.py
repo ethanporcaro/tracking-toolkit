@@ -3,7 +3,32 @@ import openvr
 
 from .constants import controller_model_path, tracker_model_path, hmd_model_path
 from .properties import OVRTransform, OVRContext
-from .tracking import load_trackers
+from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview
+
+
+class ToggleRecordOperator(bpy.types.Operator):
+    bl_idname = "id.toggle_recording"
+    bl_label = "Toggle OpenVR recording"
+
+    def execute(self, context):
+        ovr_context: OVRContext = context.scene.OVRContext
+
+        # Double check state, though this should have been checked before
+        if not ovr_context.enabled:
+            return {"FINISHED"}
+
+        if ovr_context.calibration_stage != 0:
+            return {"FINISHED"}
+
+        ovr_context.recording = not ovr_context.recording
+        if ovr_context.recording:
+            ovr_context.record_start_frame = context.scene.frame_current
+            start_preview(ovr_context)
+            start_recording()
+        else:
+            stop_recording(ovr_context)
+
+        return {"FINISHED"}
 
 
 class ToggleCalibrationOperator(bpy.types.Operator):
@@ -101,10 +126,12 @@ class ToggleActiveOperator(bpy.types.Operator):
     def execute(self, context):
         ovr_context: OVRContext = context.scene.OVRContext
         if ovr_context.enabled:
+            stop_preview()
             openvr.shutdown()
         else:
             openvr.init(openvr.VRApplication_Scene)
             load_trackers(ovr_context)
+            start_preview(ovr_context)
 
         ovr_context.enabled = not ovr_context.enabled
         return {"FINISHED"}

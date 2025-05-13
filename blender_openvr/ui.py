@@ -6,7 +6,8 @@ from .operators import (
     ToggleCalibrationOperator,
     ReloadTrackersOperator,
     ResetTrackersOperator,
-    CreateRefsOperator
+    CreateRefsOperator,
+    ToggleRecordOperator
 )
 from .properties import OVRContext
 
@@ -89,3 +90,23 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         # Reset names button
         layout.operator_context = "INVOKE_DEFAULT"
         layout.operator(ResetTrackersOperator.bl_idname, text="Trim And Reset All Trackers And Names")
+
+        # Recording
+        layout.label(text="Recording")
+
+        start_record_label = "Start Recording"
+        stop_record_label = "Stop Recording"
+        active_record_label = stop_record_label if ovr_context.recording else start_record_label
+
+        start_record_icon = "RECORD_OFF"
+        stop_record_icon = "RECORD_ON"
+        active_record_icon = stop_record_icon if ovr_context.recording else start_record_icon
+
+        # I hate warnings (for icon type checking)
+        # noinspection PyTypeChecker
+        layout.operator(
+            ToggleRecordOperator.bl_idname,
+            text=active_record_label,
+            icon=active_record_icon,
+            depress=ovr_context.recording
+        )
