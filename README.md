@@ -1,6 +1,21 @@
 # Tracking Toolkit
 
-[<img src="assets/drag_prompt.png"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fraw.githubusercontent.com%2Fethanporcaro%2Ftracking-toolkit%2Frefs%2Fheads%2Fmain%2Findex.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
+![assets/cover.png](assets/cover.png)
+
+## Installation
+
+### Automatic
+
+Drag this image onto the Blender interface. If it asks to create a repo, accept, and you may have to drag the image again. 
+
+If you are updating, you can drag the image or check for updates in the Blender preferences.
+
+[<img src="assets/drag_prompt.png" width="200px"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fraw.githubusercontent.com%2Fethanporcaro%2Ftracking-toolkit%2Frefs%2Fheads%2Fmain%2Findex.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
+
+### Manual
+
+1) Download `tracking_toolkit-latest.zip` from the [latest release](https://github.com/ethanporcaro/tracking-toolkit/releases/latest)
+2) Open Blender, use `Edit > Preferences > Get Extensions > (Arrow in top right corner) > Install from disk`, and select the downloaded zip.
 
 ## Setup
 
