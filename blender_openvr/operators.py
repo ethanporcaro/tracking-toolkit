@@ -1,9 +1,9 @@
 import bpy
 import openvr
 
-from .constants import controller_model_path, tracker_model_path, hmd_model_path
-from .properties import OVRTransform, OVRContext
+from .properties import Preferences, OVRTransform, OVRContext
 from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview
+from .. import __package__ as base_package
 
 
 class ToggleRecordOperator(bpy.types.Operator):
@@ -189,14 +189,33 @@ class CreateRefsOperator(bpy.types.Operator):
             root_empty.empty_display_size = 0.1
 
         # Import models
-        bpy.ops.wm.obj_import(filepath=tracker_model_path)
-        tracker_model = bpy.context.object
 
-        bpy.ops.wm.obj_import(filepath=controller_model_path)
-        controller_model = bpy.context.object
+        # Get model paths from preferences
+        preferences: Preferences | None = context.preferences.addons[base_package].preferences
 
-        bpy.ops.wm.obj_import(filepath=hmd_model_path)
-        hmd_model = bpy.context.object
+        install_dir = preferences.steamvr_installation_path
+        tracker_model_path = (f"{install_dir}/drivers/htc/resources/rendermodels/"
+                              "vr_tracker_vive_3_0/vr_tracker_vive_3_0.obj")
+        controller_model_path = (f"{install_dir}/resources/rendermodels/"
+                                 "vr_controller_vive_1_5/vr_controller_vive_1_5.obj")
+        hmd_model_path = (f"{install_dir}/resources/rendermodels/"
+                          "generic_hmd/generic_hmd.obj")
+
+        try:
+            bpy.ops.wm.obj_import(filepath=tracker_model_path)
+            tracker_model = bpy.context.object
+
+            bpy.ops.wm.obj_import(filepath=controller_model_path)
+            controller_model = bpy.context.object
+
+            bpy.ops.wm.obj_import(filepath=hmd_model_path)
+            hmd_model = bpy.context.object
+        except RuntimeError:
+            self.report(
+                {"ERROR"},
+                "Could not import tracker models. Check your SteamVR path in the addon preferences."
+            )
+            return {"FINISHED"}
 
         tracker_model.location = (0, 0, 0)
         tracker_model.rotation_euler = (0, 0, 0)
