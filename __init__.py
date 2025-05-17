@@ -1,7 +1,7 @@
 # Dev reload
 if "bpy" in locals():
     import sys
-    print("Reloading Blender OpenVR Modules")
+    print("Reloading Tracking Toolkit Modules")
     prefix = __package__ + "."
     for name in sys.modules.copy():
         if name.startswith(prefix):
@@ -10,7 +10,7 @@ if "bpy" in locals():
 
 import bpy
 
-from .blender_openvr.operators import (
+from .tracking_toolkit.operators import (
     CreateRefsOperator,
     ResetTrackersOperator,
     ReloadTrackersOperator,
@@ -18,19 +18,19 @@ from .blender_openvr.operators import (
     ToggleCalibrationOperator,
     ToggleRecordOperator
 )
-from .blender_openvr.properties import (
+from .tracking_toolkit.properties import (
     OVRContext,
     OVRTracker,
     OVRTarget,
     OVRTransform,
     Preferences
 )
-from .blender_openvr.ui import PANEL_UL_TrackerList, OpenVRPanel
-from .blender_openvr.tracking import stop_recording, stop_preview
+from .tracking_toolkit.ui import PANEL_UL_TrackerList, OpenVRPanel
+from .tracking_toolkit.tracking import stop_recording, stop_preview
 
 
 def register():
-    print("Loading Blender OpenVR")
+    print("Loading Tracking Toolkit")
 
     # Props
     bpy.utils.register_class(Preferences)
@@ -56,7 +56,7 @@ def register():
 
 
 def unregister():
-    print("Unloading Blender OpenVR...")
+    print("Unloading Tracking Toolkit...")
 
     stop_preview()
 
@@ -82,7 +82,7 @@ def unregister():
     bpy.utils.unregister_class(OVRTransform)
     bpy.utils.unregister_class(Preferences)
 
-    print("Unloaded Blender OpenVR")
+    print("Unloaded Tracking Toolkit")
 
 
 if __name__ == "__main__":

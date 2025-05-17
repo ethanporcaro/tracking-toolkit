@@ -50,5 +50,5 @@ class Preferences(bpy.types.AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="Preferences for Blender OpenVR")
+        layout.label(text="Preferences for Tracking Toolkit")
         layout.prop(self, "steamvr_installation_path")
