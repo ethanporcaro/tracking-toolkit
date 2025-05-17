@@ -1,4 +1,5 @@
 import bpy
+from .. import __package__ as base_package
 
 
 class OVRTransform(bpy.types.PropertyGroup):
@@ -36,3 +37,18 @@ class OVRContext(bpy.types.PropertyGroup):
     offset: bpy.props.PointerProperty(type=OVRTransform, name="Tracker offset")
 
     record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)
+
+
+class Preferences(bpy.types.AddonPreferences):
+    bl_idname = base_package
+
+    steamvr_installation_path: bpy.props.StringProperty(
+        name="SteamVR Installation Path",
+        subtype="FILE_PATH",
+        default="C:/Program Files (x86)/Steam/steamapps/common/SteamVR"
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="Preferences for Blender OpenVR")
+        layout.prop(self, "steamvr_installation_path")

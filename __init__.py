@@ -22,7 +22,8 @@ from .blender_openvr.properties import (
     OVRContext,
     OVRTracker,
     OVRTarget,
-    OVRTransform
+    OVRTransform,
+    Preferences
 )
 from .blender_openvr.ui import PANEL_UL_TrackerList, OpenVRPanel
 from .blender_openvr.tracking import stop_recording, stop_preview
@@ -32,6 +33,7 @@ def register():
     print("Loading Blender OpenVR")
 
     # Props
+    bpy.utils.register_class(Preferences)
     bpy.utils.register_class(OVRTransform)
     bpy.utils.register_class(OVRTarget)
     bpy.utils.register_class(OVRTracker)
@@ -78,6 +80,7 @@ def unregister():
     bpy.utils.unregister_class(OVRTracker)
     bpy.utils.unregister_class(OVRTarget)
     bpy.utils.unregister_class(OVRTransform)
+    bpy.utils.unregister_class(Preferences)
 
     print("Unloaded Blender OpenVR")
 
