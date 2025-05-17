@@ -1,4 +1,4 @@
-# Blender OpenVR
+# Tracking Toolkit
 
 ## Setup
 
@@ -115,6 +115,8 @@ That isn't to say that the aforementioned developers had a **huge** impact on th
 ## License
 
 This extension is licensed under [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
+
+Logos and assets under `/assets` are in the [Public Domain (CC0)](https://spdx.org/licenses/CC0-1.0.html).
 
 ```text
 Copyright (C) 2025 Ethan Porcaro

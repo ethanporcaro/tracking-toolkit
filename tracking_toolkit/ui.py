@@ -31,8 +31,8 @@ class PANEL_UL_TrackerList(bpy.types.UIList):
 
 class OpenVRPanel(View3DPanel, bpy.types.Panel):
     bl_idname = "VIEW3D_PT_openvr_menu"
-    bl_label = "Blender OpenVR"
-    bl_category = "OpenVR"
+    bl_label = "Tracking Toolkit"
+    bl_category = "Track TK"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
 
@@ -40,7 +40,7 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         layout = self.layout
         ovr_context: OVRContext = context.scene.OVRContext
 
-        layout.label(text="Blender OpenVR")
+        layout.label(text="Tracking Toolkit")
 
         # Toggle active button
         # It's super annoying to have Blender not save the state of this button on save, so we just label it funny
