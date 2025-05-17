@@ -1,0 +1,36 @@
+{
+  "version": "v1",
+  "blocklist": [],
+  "data": [
+    {
+      "schema_version": "1.0.0",
+      "id": "tracking_toolkit",
+      "name": "Tracking Toolkit",
+      "tagline": "Use OpenVR trackers and devices directly in Blender",
+      "version": "1.1.1",
+      "type": "add-on",
+      "maintainer": "Ethan Porcaro <ethan@varrett.com>",
+      "license": [
+        "SPDX:GPL-3.0-or-later"
+      ],
+      "blender_version_min": "4.2.0",
+      "permissions": {
+        "files": "Load SteamVR controller and tracker models"
+      },
+      "tags": [
+        "Animation",
+        "Tracking"
+      ],
+      "platforms": [
+        "windows-x64",
+        "linux-x64"
+      ],
+      "python_versions": [
+        "3"
+      ],
+      "archive_url": "https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-1.1.1.zip",
+      "archive_size": 1988953,
+      "archive_hash": "sha256:0528f2a09a2a4630a6e6bcf587d87b41a0ae94c99c232134ac98860ae4dfb3c8"
+    }
+  ]
+}
