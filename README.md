@@ -1,5 +1,7 @@
 # Tracking Toolkit
 
+[<img src="assets/drag_prompt.png"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fraw.githubusercontent.com%2Fethanporcaro%2Ftracking-toolkit%2Frefs%2Fheads%2Fmain%2Findex.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
+
 ## Setup
 
 After enabling the extension, you will find a new panel in the sidebar tabs.

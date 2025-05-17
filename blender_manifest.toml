@@ -26,6 +26,7 @@ paths_exclude_pattern = [
   "__pycache__/",
   ".*",
   "*.zip",
+  "index.json",  # Extension repo stuff
 ]
 
 [permissions]
