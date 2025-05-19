@@ -41,8 +41,6 @@ This will create pairs of objects for each tracked device.
 * One is the 'target'. The 'target' will track exactly to the provided data from OpenVR. Any movements of it will be reset.
 * The other is the 'joint'. The 'joint' is child of the 'target' and can be offset to correct alignment issues. See the calibration instructions.
 
-**DO NOT RENAME THE REFERENCE OBJECTS DIRECTLY!** You can select friendly names by double-clicking an entry on the list. If you do so, you will have to press `Create References` again and manually delete the old target and joint objects from the scene.
-
 ### Trim And Reset Trackers
 
 This will essentially wipe all trackers and their data from the list and reload them. This currently resets their names too, but a better fix for that is planned.
