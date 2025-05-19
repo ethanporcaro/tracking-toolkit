@@ -23,11 +23,11 @@ After enabling the extension, you will find a new panel in the sidebar tabs.
 
 Begin by clicking the `Start OpenVR` button. This will open SteamVR if it isn't open already, but I find less issues if I open it manually beforehand.
 
-![step1.png](images/step1.png)
+[<img src="images/step1.png" width="400px"/>](images/step1.png)
 
 Then you should see the trackers populated in the dropdown. The rest of the menu will also appear.
 
-![step2.png](images/step2.png)
+[<img src="images/step2.png" width="400px"/>](images/step2.png)
 
 ### Reload Trackers
 
@@ -55,8 +55,8 @@ There are two stages to the calibration. They can be cycled through with the `St
 
 In the first step, you need to move the target (opaque) models to where the character would be holding them:
 
-![calibration1.png](images/calibration1.png)
-![calibration2.png](images/calibration2.png)
+[<img src="images/calibration1.png" width="400px"/>](images/calibration1.png)
+[<img src="images/calibration2.png" width="400px"/>](images/calibration2.png)
 
 
 ### Stage 2: Offset Correction
@@ -67,12 +67,12 @@ You can move the joint (wireframe) models until the character's pose matches the
 
 I find usually the rotations are in increments of 90 or 180 degrees.
 
-![calibration3.png](images/calibration3.png)
-![calibration4.png](images/calibration4.png)
+[<img src="images/calibration3.png" width="400px"/>](images/calibration3.png)
+[<img src="images/calibration4.png" width="400px"/>](images/calibration4.png)
 
 Then you can press the `Complete Calibration` button.
 
-![calibration5.png](images/calibration5.png)
+[<img src="images/calibration5.png" width="400px"/>](images/calibration5.png)
 
 Note that I already set up constraints in this image. You may need to make a few more adjustments. 
 
@@ -102,7 +102,7 @@ Sometimes, stopping and starting OpenVR with the first button will solve some th
 
 If in doubt, open up the console window with `Window > Toggle System Console` and open an issue on GitHub with any error messages and context.
 
-**If your steam installation is in a different directory than `C:/Program Files (x86)/Steam/steamapps/common/SteamVR`, you will need to go into the source code and correct the path at the top.** I will try to put this in the settings menu eventually.
+**If your steam installation is in a different directory than `C:/Program Files (x86)/Steam/steamapps/common/SteamVR`, you will need to manually set the path in the addon preferences.**
 
 ## Probably Common Questions
 
