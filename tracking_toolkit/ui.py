@@ -78,9 +78,6 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
             type="DEFAULT"
         )
 
-        layout.label(text="If you rename any trackers you will need to recreate empties!")
-        layout.label(text="You will probably want to delete the old ones.")
-
         # Reload tracker button
         layout.operator(ReloadTrackersOperator.bl_idname, text="Reload Trackers")
 

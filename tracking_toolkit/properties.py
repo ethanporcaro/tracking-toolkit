@@ -1,4 +1,5 @@
 import bpy
+
 from .. import __package__ as base_package
 
 
@@ -14,9 +15,25 @@ class OVRTarget(bpy.types.PropertyGroup):
     calibration_transform: bpy.props.PointerProperty(type=OVRTransform)
 
 
+def tracker_name_change_callback(self: bpy.types.bpy_struct, context):
+    tracker_ref = bpy.data.objects.get(self.prev_name)
+    if not tracker_ref:
+        return  # Not yet sure what to do here
+
+    tracker_joint = bpy.data.objects.get(f"{self.prev_name} Joint")
+    if not tracker_joint:
+        return
+
+    tracker_ref.name = self.name
+    tracker_joint.name = f"{self.name} Joint"
+
+    self.prev_name = self.name
+
+
 class OVRTracker(bpy.types.PropertyGroup):
     index: bpy.props.IntProperty(name="OpenVR name")
-    name: bpy.props.StringProperty(name="Tracker name")
+    name: bpy.props.StringProperty(name="Tracker name", update=tracker_name_change_callback)
+    prev_name: bpy.props.StringProperty(name="Tracker name before renaming")
     serial: bpy.props.StringProperty(name="Tracker serial string")
     type: bpy.props.StringProperty(name="Tracker type")
 

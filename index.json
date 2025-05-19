@@ -7,7 +7,7 @@
       "id": "tracking_toolkit",
       "name": "Tracking Toolkit",
       "tagline": "Use OpenVR trackers and devices directly in Blender",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "type": "add-on",
       "maintainer": "Ethan Porcaro <ethan@varrett.com>",
       "license": [
@@ -29,8 +29,8 @@
         "3"
       ],
       "archive_url": "https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip",
-      "archive_size": 1988953,
-      "archive_hash": "sha256:0528f2a09a2a4630a6e6bcf587d87b41a0ae94c99c232134ac98860ae4dfb3c8"
+      "archive_size": 1989269,
+      "archive_hash": "sha256:725ac07ce6665ccd437fb453012a7a42c9d8035f9299f905c3398fc743e7231e"
     }
   ]
 }
