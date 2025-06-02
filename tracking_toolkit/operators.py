@@ -2,7 +2,7 @@ import bpy
 import openvr
 
 from .properties import Preferences, OVRTransform, OVRContext
-from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview
+from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview, init_handles
 from .. import __package__ as base_package
 
 
@@ -133,6 +133,7 @@ class ToggleActiveOperator(bpy.types.Operator):
             openvr.shutdown()
         else:
             openvr.init(openvr.VRApplication_Scene)
+            init_handles()
             load_trackers(ovr_context)
             start_preview(ovr_context)
 

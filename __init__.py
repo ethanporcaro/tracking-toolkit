@@ -23,6 +23,7 @@ from .tracking_toolkit.properties import (
     OVRTracker,
     OVRTarget,
     OVRTransform,
+    OVRInput,
     Preferences
 )
 from .tracking_toolkit.ui import PANEL_UL_TrackerList, OpenVRPanel
@@ -37,6 +38,7 @@ def register():
     bpy.utils.register_class(OVRTransform)
     bpy.utils.register_class(OVRTarget)
     bpy.utils.register_class(OVRTracker)
+    bpy.utils.register_class(OVRInput)
     bpy.utils.register_class(OVRContext)
 
     # Operators
@@ -77,6 +79,7 @@ def unregister():
 
     # Props
     bpy.utils.unregister_class(OVRContext)
+    bpy.utils.unregister_class(OVRInput)
     bpy.utils.unregister_class(OVRTracker)
     bpy.utils.unregister_class(OVRTarget)
     bpy.utils.unregister_class(OVRTransform)

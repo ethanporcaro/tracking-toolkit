@@ -87,6 +87,16 @@ class OVRTracker(bpy.types.PropertyGroup):
     armature: bpy.props.PointerProperty(name="Override armature", type=bpy.types.Object, poll=armature_filter)
 
 
+class OVRInput(bpy.types.PropertyGroup):
+    joystick_position: bpy.props.FloatVectorProperty(name="Joystick position", size=2, default=(0, 0))
+
+    grip_strength: bpy.props.FloatProperty(name="Grip strength", default=0)
+    trigger_strength: bpy.props.FloatProperty(name="Trigger strength", default=0)
+
+    a_button: bpy.props.BoolProperty(name="A pressed", default=False)
+    b_button: bpy.props.BoolProperty(name="B pressed", default=False)
+
+
 def selected_tracker_change_callback(self: bpy.types.bpy_struct, context):
     selected_tracker: OVRTracker = self.trackers[self.selected_tracker]
 
@@ -112,6 +122,9 @@ class OVRContext(bpy.types.PropertyGroup):
     record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)
 
     armature: bpy.props.PointerProperty(name="Default Armature", type=bpy.types.Object, poll=armature_filter)
+
+    l_input: bpy.props.PointerProperty(type=OVRInput, name="Left controller input state")
+    r_input: bpy.props.PointerProperty(type=OVRInput, name="Right controller input state")
 
 
 class Preferences(bpy.types.AddonPreferences):
