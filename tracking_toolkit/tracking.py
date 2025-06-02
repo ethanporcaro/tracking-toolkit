@@ -38,7 +38,6 @@ def _get_poses(ovr_context: OVRContext) -> Generator[tuple[datetime.datetime, OV
         # Apply scale
         root = bpy.data.objects.get("OVR Root")
         if root:
-            mat_world.translation = mat_world.translation * (root.scale * 2)
             mat_world = mat_world @ Matrix.Scale(root.scale.length, 4)
 
         yield time, tracker, mat_world
@@ -95,6 +94,7 @@ def _apply_poses():
             continue
 
         tracker_obj.matrix_world = pose
+        tracker_obj.scale = (1, 1, 1)
 
 
 def _pose_vis_timer():

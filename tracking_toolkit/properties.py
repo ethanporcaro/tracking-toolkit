@@ -10,7 +10,7 @@ class OVRTransform(bpy.types.PropertyGroup):
 
 
 class OVRTarget(bpy.types.PropertyGroup):
-    object: bpy.props.StringProperty(name="Target object")
+    object: bpy.props.PointerProperty(name="Target object", type=bpy.types.Object)
     transform: bpy.props.PointerProperty(type=OVRTransform)
     calibration_transform: bpy.props.PointerProperty(type=OVRTransform)
 
@@ -30,6 +30,45 @@ def tracker_name_change_callback(self: bpy.types.bpy_struct, context):
     self.prev_name = self.name
 
 
+def armature_filter(self: bpy.types.bpy_struct, obj: bpy.types.ID) -> bool:
+    if obj.type != "ARMATURE":
+        return False
+
+    is_linked = obj.library
+    if is_linked:
+        # Only show overridden objects
+        if not obj.override_library:
+            return False
+
+    return True
+
+
+def armature_bone_list(self: bpy.types.bpy_struct, context, edit_text):
+    armature = self.armature or context.scene.OVRContext.armature
+    return [b.name for b in armature.data.bones]
+
+
+def tracker_binding_change_callback(self: bpy.types.bpy_struct, context):
+    armature: bpy.types.Object = self.armature or context.scene.OVRContext.armature
+
+    bound_bone: bpy.types.PoseBone = armature.pose.bones.get(self.bone)
+    prev_bone: bpy.types.PoseBone = armature.pose.bones.get(self.prev_bone)
+
+    # Remove existing constraint
+    if prev_bone:
+        constraint = prev_bone.constraints.get("Tracker Binding")
+        if constraint:
+            prev_bone.constraints.remove(constraint)
+
+    # Create new constraint
+    if bound_bone:
+        constraint = bound_bone.constraints.new("COPY_TRANSFORMS")
+        constraint.name = "Tracker Binding"
+        constraint.target = self.joint.object
+
+        self.prev_bone = bound_bone.name
+
+
 class OVRTracker(bpy.types.PropertyGroup):
     index: bpy.props.IntProperty(name="OpenVR name")
     name: bpy.props.StringProperty(name="Tracker name", update=tracker_name_change_callback)
@@ -41,6 +80,11 @@ class OVRTracker(bpy.types.PropertyGroup):
 
     target: bpy.props.PointerProperty(type=OVRTarget)
     joint: bpy.props.PointerProperty(type=OVRTarget)  # Joint offset
+
+    bone: bpy.props.StringProperty(name="Bound bone", search=armature_bone_list, update=tracker_binding_change_callback)
+    prev_bone: bpy.props.StringProperty(name="Previously bound bone")
+
+    armature: bpy.props.PointerProperty(name="Override armature", type=bpy.types.Object, poll=armature_filter)
 
 
 class OVRContext(bpy.types.PropertyGroup):
@@ -54,6 +98,8 @@ class OVRContext(bpy.types.PropertyGroup):
     offset: bpy.props.PointerProperty(type=OVRTransform, name="Tracker offset")
 
     record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)
+
+    armature: bpy.props.PointerProperty(name="Default Armature", type=bpy.types.Object, poll=armature_filter)
 
 
 class Preferences(bpy.types.AddonPreferences):

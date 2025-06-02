@@ -277,9 +277,9 @@ class CreateRefsOperator(bpy.types.Operator):
                 tracker_joint.show_in_front = True
                 tracker_target.hide_render = True
 
-            # Assign names
-            tracker.target.target = tracker_target.name
-            tracker.target.joint = tracker_joint.name
+            # Assign objects
+            tracker.target.object = tracker_target
+            tracker.joint.object = tracker_joint
 
             # Set up parenting
             tracker_target.parent = root_empty

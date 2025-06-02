@@ -66,6 +66,9 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         layout.operator(ToggleCalibrationOperator.bl_idname, text=calibrate_btn_label)
         layout.label(text=calibrate_hint)
 
+        # Default armature
+        layout.prop(ovr_context, "armature", placeholder="Default Armature")
+
         # Tracker management
         layout.template_list(
             "PANEL_UL_TrackerList",
@@ -77,6 +80,12 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
             rows=len(ovr_context.trackers),
             type="DEFAULT"
         )
+
+        # Bone binding
+        selected_tracker = ovr_context.trackers[ovr_context.selected_tracker]
+
+        layout.prop(selected_tracker, "armature", placeholder="Override Armature")
+        layout.prop(selected_tracker, "bone", placeholder="Bound Bone")
 
         # Reload tracker button
         layout.operator(ReloadTrackersOperator.bl_idname, text="Reload Trackers")

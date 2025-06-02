@@ -92,6 +92,19 @@ When you press the space bar, the realtime tracking will temporarily pause and t
 
 It is encouraged to save each successful take to an NLA track, so it doesn't get overwritten.
 
+
+## Binding bones
+
+You can use the `Default Armature`, `Override Armature`, and `Bound Bone` property fields to bind bones to trackers:
+
+* `Default Armature` is the main armature the bones are a part of. You will set this to the armature you want to control.
+
+* `Override Armature` is a per-tracker armature that can be set when you want to control multiple armatures at the same time. Usually, you will leave this blank.
+
+* `Bound Bone` is the bone you want to bind the tracker joint to. This will add a `Copy Transforms` constraint.
+
+Do not rename the crated constraint, otherwise it will fail to remove itself when you select a different bone.
+
 ## Troubleshooting
 
 You will probably experience some sort of issue as this extension is being refined.
