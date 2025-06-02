@@ -287,6 +287,6 @@ def load_trackers(ovr_context: OVRContext, reset=False):
             tracker.name = tracker_serial
             tracker.serial = tracker_serial
             tracker.type = str(system.getTrackedDeviceClass(i))
+            tracker.index = i
 
-        tracker.index = i  # Just in case, do it for both existing and non-existing
-        tracker.connected = bool(system.isTrackedDeviceConnected(i))
+        tracker.connected = bool(system.isTrackedDeviceConnected(i))  # Just in case, do it for both
