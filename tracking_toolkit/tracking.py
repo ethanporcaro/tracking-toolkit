@@ -269,6 +269,11 @@ def load_trackers(ovr_context: OVRContext, reset=False):
     system = openvr.VRSystem()
 
     if reset:
+        for tracker in ovr_context.trackers:
+            if tracker.target.object:
+                bpy.data.objects.remove(tracker.target.object, do_unlink=True)
+            if tracker.joint.object:
+                bpy.data.objects.remove(tracker.joint.object, do_unlink=True)
         ovr_context.trackers.clear()
 
     for i in range(openvr.k_unMaxTrackedDeviceCount):
@@ -285,6 +290,7 @@ def load_trackers(ovr_context: OVRContext, reset=False):
         else:
             tracker = ovr_context.trackers.add()
             tracker.name = tracker_serial
+            tracker.prev_name = tracker_serial
             tracker.serial = tracker_serial
             tracker.type = str(system.getTrackedDeviceClass(i))
             tracker.index = i
