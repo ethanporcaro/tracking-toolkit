@@ -110,10 +110,13 @@ class ToggleCalibrationOperator(bpy.types.Operator):
         if ovr_context.calibration_stage == 0:  # Complete calibration
             self.save_calibration_transforms(ovr_context)
             self.disable_rest()
+            start_preview(ovr_context)
         elif ovr_context.calibration_stage == 1:  # Tracker Alignment
+            stop_preview()
             self.restore_calibration_transforms(ovr_context)
             self.enable_rest()
         elif ovr_context.calibration_stage == 2:  # Tracker Offsetting
+            stop_preview()
             self.disable_rest()
 
         return {"FINISHED"}
