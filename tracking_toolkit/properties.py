@@ -87,13 +87,25 @@ class OVRTracker(bpy.types.PropertyGroup):
     armature: bpy.props.PointerProperty(name="Override armature", type=bpy.types.Object, poll=armature_filter)
 
 
+def selected_tracker_change_callback(self: bpy.types.bpy_struct, context):
+    selected_tracker: OVRTracker = self.trackers[self.selected_tracker]
+
+    obj = selected_tracker.joint.object
+    if not obj:
+        return
+
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    context.view_layer.objects.active = obj
+
+
 class OVRContext(bpy.types.PropertyGroup):
     enabled: bpy.props.BoolProperty(name="OpenVR active", default=False)
     calibration_stage: bpy.props.IntProperty(name="Stage number of OpenVR Calibration", default=0)
     recording: bpy.props.BoolProperty(name="OpenVR recording", default=False)
 
     trackers: bpy.props.CollectionProperty(type=OVRTracker)
-    selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0)
+    selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0, update=selected_tracker_change_callback)
 
     offset: bpy.props.PointerProperty(type=OVRTransform, name="Tracker offset")
 
