@@ -21,8 +21,7 @@ wheels = [
 
 [build]
 paths_exclude_pattern = [
-  "images/",  # Docs
-  "assets",  # Stuff for extension platform
+  "images/",  # Stuff for readme
   "__pycache__/",
   ".*",
   "*.zip",

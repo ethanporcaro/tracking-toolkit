@@ -1,6 +1,6 @@
 # Tracking Toolkit
 
-![assets/cover.png](assets/cover.png)
+![images/cover.png](images/cover.png)
 
 ## Installation
 
@@ -10,7 +10,7 @@ Drag this image onto the Blender interface. If it asks to create a repo, accept,
 
 If you are updating, you can drag the image or check for updates in the Blender preferences.
 
-[<img src="assets/drag_prompt.png" width="200px"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fraw.githubusercontent.com%2Fethanporcaro%2Ftracking-toolkit%2Frefs%2Fheads%2Fmain%2Findex.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
+[<img src="images/drag_prompt.png" width="200px"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fraw.githubusercontent.com%2Fethanporcaro%2Ftracking-toolkit%2Frefs%2Fheads%2Fmain%2Findex.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
 
 ### Manual
 
@@ -144,7 +144,7 @@ That isn't to say that the aforementioned developers had a **huge** impact on th
 
 This extension is licensed under [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
 
-Logos and assets under `/assets` are in the [Public Domain (CC0)](https://spdx.org/licenses/CC0-1.0.html).
+Logos and images under `/images` are in the [Public Domain (CC0)](https://spdx.org/licenses/CC0-1.0.html).
 
 ```text
 Copyright (C) 2025 Ethan Porcaro
