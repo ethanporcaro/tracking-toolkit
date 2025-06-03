@@ -29,10 +29,7 @@ Then you should see the trackers populated in the dropdown. The rest of the menu
 
 [<img src="images/step2.png" width="400px"/>](images/step2.png)
 
-### Reload Trackers
-
-This button will query OpenVR for new trackers. It will not remove old ones, and it will not create tracked reference objects for them.
-
+***Note, this image may be outdated. The UI changes often.***
 
 ### Create References
 
@@ -40,10 +37,6 @@ This will create pairs of objects for each tracked device.
 
 * One is the 'target'. The 'target' will track exactly to the provided data from OpenVR. Any movements of it will be reset.
 * The other is the 'joint'. The 'joint' is child of the 'target' and can be offset to correct alignment issues. See the calibration instructions.
-
-### Trim And Reset Trackers
-
-This will essentially wipe all trackers and their data from the list and reload them. This currently resets their names too, but a better fix for that is planned.
 
 This operation is generally undo-able, but be careful nonetheless.
 

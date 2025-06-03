@@ -199,13 +199,6 @@ class CreateRefsOperator(bpy.types.Operator):
             )
             return {"FINISHED"}
 
-        # Delete old
-        for tracker in ovr_context.trackers:
-            if tracker.target.object:
-                bpy.data.objects.remove(tracker.target.object, do_unlink=True)
-            if tracker.joint.object:
-                bpy.data.objects.remove(tracker.joint.object, do_unlink=True)
-
         load_trackers(ovr_context)
 
         # Default reference transformations
