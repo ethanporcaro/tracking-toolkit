@@ -80,10 +80,11 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         )
 
         # Bone binding
-        selected_tracker = ovr_context.trackers[ovr_context.selected_tracker]
+        if ovr_context.selected_tracker:
+            selected_tracker = ovr_context.trackers[ovr_context.selected_tracker]
 
-        layout.prop(selected_tracker, "armature", placeholder="Override Armature")
-        layout.prop(selected_tracker, "bone", placeholder="Bound Bone")
+            layout.prop(selected_tracker, "armature", placeholder="Override Armature")
+            layout.prop(selected_tracker, "bone", placeholder="Bound Bone")
 
         # Create empties
         layout.operator(CreateRefsOperator.bl_idname, text="Create References")
