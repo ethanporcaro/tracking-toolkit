@@ -141,34 +141,6 @@ class ToggleActiveOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class ResetTrackersOperator(bpy.types.Operator):
-    bl_idname = "id.reset_trackers"
-    bl_label = "Are you sure you want to trim and reset ALL OpenVR Trackers?"
-    bl_options = {"REGISTER", "INTERNAL"}
-
-    def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-        if ovr_context.enabled:
-            load_trackers(ovr_context, reset=True)
-
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
-
-
-class ReloadTrackersOperator(bpy.types.Operator):
-    bl_idname = "id.reload_trackers"
-    bl_label = "Reload OpenVR tracker list"
-
-    def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-        if ovr_context.enabled:
-            load_trackers(ovr_context)
-
-        return {"FINISHED"}
-
-
 class CreateRefsOperator(bpy.types.Operator):
     bl_idname = "id.add_tracker_res"
     bl_label = "Create tracker target references"
@@ -176,6 +148,12 @@ class CreateRefsOperator(bpy.types.Operator):
 
     def execute(self, context):
         ovr_context: OVRContext = context.scene.OVRContext
+        if not ovr_context.enabled:
+            self.report(
+                {"ERROR"},
+                "OpenVR has not been connected yet"
+            )
+            return {"FINISHED"}
 
         # Set to object mode while keeping track of the previous one
         prev_obj = bpy.context.object
@@ -221,6 +199,16 @@ class CreateRefsOperator(bpy.types.Operator):
             )
             return {"FINISHED"}
 
+        # Delete old
+        for tracker in ovr_context.trackers:
+            if tracker.target.object:
+                bpy.data.objects.remove(tracker.target.object, do_unlink=True)
+            if tracker.joint.object:
+                bpy.data.objects.remove(tracker.joint.object, do_unlink=True)
+
+        load_trackers(ovr_context)
+
+        # Default reference transformations
         tracker_model.location = (0, 0, 0)
         tracker_model.rotation_euler = (0, 0, 0)
 

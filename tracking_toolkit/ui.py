@@ -4,8 +4,6 @@ from bl_ui.space_view3d_toolbar import View3DPanel
 from .operators import (
     ToggleActiveOperator,
     ToggleCalibrationOperator,
-    ReloadTrackersOperator,
-    ResetTrackersOperator,
     CreateRefsOperator,
     ToggleRecordOperator
 )
@@ -87,15 +85,8 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         layout.prop(selected_tracker, "armature", placeholder="Override Armature")
         layout.prop(selected_tracker, "bone", placeholder="Bound Bone")
 
-        # Reload tracker button
-        layout.operator(ReloadTrackersOperator.bl_idname, text="Reload Trackers")
-
         # Create empties
         layout.operator(CreateRefsOperator.bl_idname, text="Create References")
-
-        # Reset names button
-        layout.operator_context = "INVOKE_DEFAULT"
-        layout.operator(ResetTrackersOperator.bl_idname, text="Trim And Reset All Trackers And Names")
 
         # Recording
         layout.label(text="Recording")

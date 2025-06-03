@@ -12,8 +12,6 @@ import bpy
 
 from .tracking_toolkit.operators import (
     CreateRefsOperator,
-    ResetTrackersOperator,
-    ReloadTrackersOperator,
     ToggleActiveOperator,
     ToggleCalibrationOperator,
     ToggleRecordOperator
@@ -26,8 +24,22 @@ from .tracking_toolkit.properties import (
     OVRInput,
     Preferences
 )
+from .tracking_toolkit.tracking import stop_preview
 from .tracking_toolkit.ui import PANEL_UL_TrackerList, OpenVRPanel
-from .tracking_toolkit.tracking import stop_recording, stop_preview
+
+
+def scene_update_callback(scene: bpy.types.Scene, depsgraph):
+    selected = [obj for obj in scene.objects if obj.select_get()]
+    if not selected:
+        return
+
+    ovr_context = scene.OVRContext
+
+    active = selected[-1].name
+    for tracker in ovr_context.trackers:
+        if tracker.target.object and (tracker.target.object.name == active or tracker.joint.object.name == active):
+            if ovr_context.selected_tracker != tracker.index:
+                ovr_context.selected_tracker = tracker.index
 
 
 def register():
@@ -43,10 +55,8 @@ def register():
 
     # Operators
     bpy.utils.register_class(ToggleCalibrationOperator)
-    bpy.utils.register_class(ResetTrackersOperator)
     bpy.utils.register_class(ToggleActiveOperator)
     bpy.utils.register_class(CreateRefsOperator)
-    bpy.utils.register_class(ReloadTrackersOperator)
     bpy.utils.register_class(ToggleRecordOperator)
 
     # Contexts
@@ -55,6 +65,10 @@ def register():
     # UI
     bpy.utils.register_class(PANEL_UL_TrackerList)
     bpy.utils.register_class(OpenVRPanel)
+
+    # Handlers
+    bpy.app.handlers.depsgraph_update_post.clear()
+    bpy.app.handlers.depsgraph_update_post.append(scene_update_callback)
 
 
 def unregister():
@@ -71,10 +85,8 @@ def unregister():
 
     # Classes
     bpy.utils.unregister_class(ToggleRecordOperator)
-    bpy.utils.unregister_class(ReloadTrackersOperator)
     bpy.utils.unregister_class(CreateRefsOperator)
     bpy.utils.unregister_class(ToggleActiveOperator)
-    bpy.utils.unregister_class(ResetTrackersOperator)
     bpy.utils.unregister_class(ToggleCalibrationOperator)
 
     # Props
@@ -84,6 +96,9 @@ def unregister():
     bpy.utils.unregister_class(OVRTarget)
     bpy.utils.unregister_class(OVRTransform)
     bpy.utils.unregister_class(Preferences)
+
+    # Handlers
+    bpy.app.handlers.depsgraph_update_post.clear()
 
     print("Unloaded Tracking Toolkit")
 
