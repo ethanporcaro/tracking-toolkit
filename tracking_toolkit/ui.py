@@ -45,24 +45,8 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         activate_label = "Disconnect/Reset OpenVR" if ovr_context.enabled else "Start/Connect OpenVR"
         layout.operator(ToggleActiveOperator.bl_idname, text=activate_label)
 
-        if not ovr_context.enabled:
-            return
-
-        layout.label(text="Calibration:")
-
-        # Toggle calibration button
-        if ovr_context.calibration_stage == 1:
-            calibrate_btn_label = "Continue to Offset"
-            calibrate_hint = "Stage 1: Line up the opaque tracker models with the character"
-        elif ovr_context.calibration_stage == 2:
-            calibrate_btn_label = "Complete Calibration"
-            calibrate_hint = "Stage 2: Offset the wireframe tracker models to correct the pose"
-        else:
-            calibrate_btn_label = "Start Calibration"
-            calibrate_hint = "Calibration complete"
-
-        layout.operator(ToggleCalibrationOperator.bl_idname, text=calibrate_btn_label)
-        layout.label(text=calibrate_hint)
+        # Trackers
+        layout.label(text="Manage Trackers")
 
         # Default armature
         layout.prop(ovr_context, "armature", placeholder="Default Armature")
@@ -80,7 +64,7 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         )
 
         # Bone binding
-        if ovr_context.selected_tracker:
+        if ovr_context.selected_tracker and ovr_context.selected_tracker < len(ovr_context.trackers):
             selected_tracker = ovr_context.trackers[ovr_context.selected_tracker]
 
             layout.prop(selected_tracker, "armature", placeholder="Override Armature")
@@ -88,6 +72,27 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
 
         # Create empties
         layout.operator(CreateRefsOperator.bl_idname, text="Create References")
+
+        # Show the rest if OpenVR is running
+        if not ovr_context.enabled:
+            return
+
+        # Calibration
+        layout.label(text="Calibration:")
+
+        # Toggle calibration button
+        if ovr_context.calibration_stage == 1:
+            calibrate_btn_label = "Continue to Offset"
+            calibrate_hint = "Stage 1: Line up the opaque tracker models with the character"
+        elif ovr_context.calibration_stage == 2:
+            calibrate_btn_label = "Complete Calibration"
+            calibrate_hint = "Stage 2: Offset the wireframe tracker models to correct the pose"
+        else:
+            calibrate_btn_label = "Start Calibration"
+            calibrate_hint = "Calibration complete"
+
+        layout.operator(ToggleCalibrationOperator.bl_idname, text=calibrate_btn_label)
+        layout.label(text=calibrate_hint)
 
         # Recording
         layout.label(text="Recording")
