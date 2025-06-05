@@ -1,6 +1,6 @@
 import bpy
 import openvr
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 from .properties import Preferences, OVRTransform, OVRContext
 from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview, init_handles
@@ -37,73 +37,101 @@ class BuildArmatureOperator(bpy.types.Operator):
         for bone in list(edit_bones):  # Iterate over a copy as we are modifying the list
             edit_bones.remove(bone)
 
-        def get_loc(obj_prop):
+        def get_loc(obj_prop) -> Vector | None:
             if obj_prop:
                 return obj_prop.matrix_world.translation.copy()  # Use a copy to prevent changing it
             return None
 
         joints = ovr_context.armature_joints
 
-        head_loc = get_loc(joints.head)
-        chest_loc = get_loc(joints.chest) or (head_loc - Vector((0, 0, 0.2)))
-        hips_loc = get_loc(joints.hips) or (head_loc - Vector((0, 0, 0.4))) or (chest_loc - Vector((0, 0, 0.2)))
+        foot_height = (get_loc(joints.l_foot).z + get_loc(joints.r_foot).z) / 2  # Average of feet
 
-        l_hand_loc = get_loc(joints.l_hand)
-        r_hand_loc = get_loc(joints.r_hand)
-        l_elbow_loc = get_loc(joints.l_elbow)
-        r_elbow_loc = get_loc(joints.r_elbow)
+        # Offset floor
+        head_height = get_loc(joints.head).z - foot_height
+        foot_height = 0
 
-        l_foot_loc = get_loc(joints.l_foot)
-        r_foot_loc = get_loc(joints.r_foot)
-        l_knee_loc = get_loc(joints.l_knee) or (l_foot_loc + Vector((0, 0, 0.4)))
-        r_knee_loc = get_loc(joints.r_knee) or (r_foot_loc + Vector((0, 0, 0.4)))
+        hips_height = get_loc(joints.hips).z
+        chest_height = (get_loc(joints.chest).z
+                        if joints.chest
+                        else (hips_height + head_height) / 2)  # If no chest, average hips and head
+        knee_height = ((get_loc(joints.l_knee).z + get_loc(joints.r_knee).z) / 2
+                       if joints.l_knee and joints.r_knee
+                       else (foot_height + hips_height) / 2)  # If no knees, average hips and feet
 
-        # Name, parent name, parent_obj, tail loc, head loc, head_obj
+        # Skip elbow height since we are t-posing
+
+        head_loc = Vector((0, 0, head_height))
+        hips_loc = Vector((0, 0, hips_height))
+        chest_loc = Vector((0, 0, chest_height))
+
+        l_foot_loc = Vector((0.1, 0, foot_height))
+        r_foot_loc = Vector((-0.1, 0, foot_height))
+
+        half_height = head_height / 2  # Half of wingspan
+
+        # Offset 0.1 since it's added back later for hand tips
+        l_hand_loc = Vector((half_height - 0.1, 0, chest_height))
+        r_hand_loc = Vector((-half_height + 0.1, 0, chest_height))
+
+        quarter_height = half_height / 2  # Elbows halfway between hands
+
+        l_elbow_loc = Vector((quarter_height, 0, chest_height))
+        r_elbow_loc = Vector((-quarter_height, 0, chest_height))
+
+        l_knee_loc = Vector((0.1, 0, knee_height))
+        r_knee_loc = Vector((-0.1, 0, knee_height))
+
+        # Name, parent name, parent_obj, head_loc, tail_loc, head_obj
         bone_definitions = [
-            ("root", None, joints.hips, hips_loc, hips_loc + Vector((0, 0, -0.05))),  # Hips to below hips
-            ("spine", "root", joints.hips, chest_loc, hips_loc),  # Hips to neck
-            ("head", "spine", joints.head, head_loc + Vector((0, 0, 0.1)), head_loc),  # Head to above head
+            ("root", None, joints.hips, hips_loc + Vector((0, 0, -0.05)), hips_loc),  # Hips to below hips
+            ("spine", "root", joints.hips, hips_loc, chest_loc),  # Hips to neck
+            ("head", "spine", joints.hips, chest_loc, head_loc),  # Chest to head
 
-            # Hands
-            ("upper_arm.l", "spine", joints.l_elbow, l_elbow_loc, chest_loc),  # L elbow to chest
-            ("lower_arm.l", "upper_arm.l", joints.l_hand, l_hand_loc, l_elbow_loc),  # L hand to elbow
-            ("hand.l", "lower_arm.l", joints.l_hand, l_hand_loc + Vector((0, 0, 0.1)), l_hand_loc),
+            # Arms and hands
+            ("upper_arm.l", "spine", joints.l_elbow, chest_loc, l_elbow_loc),  # Chest to elbow
+            ("upper_arm.r", "spine", joints.r_elbow, chest_loc, r_elbow_loc),  # Chest to elbow
 
-            ("upper_arm.r", "spine", joints.r_elbow, r_elbow_loc, chest_loc),  # R elbow to chest
-            ("lower_arm.r", "upper_arm.r", joints.r_hand, r_hand_loc, r_elbow_loc),  # R hand to elbow
-            ("hand.r", "lower_arm.r", joints.r_hand, r_hand_loc + Vector((0, 0, 0.1)), r_hand_loc),
+            ("lower_arm.l", "upper_arm.l", joints.l_hand, l_elbow_loc, l_hand_loc),  # Elbow to hand
+            ("lower_arm.r", "upper_arm.r", joints.r_hand, r_elbow_loc, r_hand_loc),  # Elbow to hand
 
-            # Legs
-            ("upper_leg.l", "root", joints.l_knee or joints.l_foot, l_knee_loc, hips_loc),  # L elbow to hips
-            ("lower_leg.l", "upper_leg.l", joints.l_foot, l_foot_loc, l_knee_loc),  # L foot to elbow
-            ("upper_leg.r", "root", joints.r_knee or joints.r_foot, r_knee_loc, hips_loc),  # R elbow to hips
-            ("lower_leg.r", "upper_leg.r", joints.r_foot, r_foot_loc, r_knee_loc),  # R foot to elbo
+            ("hand.l", "lower_arm.l", joints.l_hand, l_hand_loc, l_hand_loc + Vector((0.1, 0, 0))),  # Hand to hand tip
+            ("hand.r", "lower_arm.r", joints.r_hand, r_hand_loc, r_hand_loc + Vector((-0.1, 0, 0))),  # Hand to hand tip
 
-            ("foot.l", "lower_leg.l", joints.l_foot, l_foot_loc + Vector((0, 0.1, 0)), l_foot_loc),
-            ("foot.r", "lower_leg.r", joints.r_foot, r_foot_loc + Vector((0, 0.1, 0)), r_foot_loc),
+            # Legs and feet
+            ("upper_leg.l", "root", joints.l_knee or joints.l_foot, hips_loc, l_knee_loc),  # Hips to knee
+            ("upper_leg.r", "root", joints.r_knee or joints.r_foot, hips_loc, r_knee_loc),  # Hips to knee
+
+            ("lower_leg.l", "upper_leg.l", joints.l_foot, l_knee_loc, l_foot_loc),  # L foot to elbow
+            ("lower_leg.r", "upper_leg.r", joints.r_foot, r_knee_loc, r_foot_loc),  # R foot to elbo
+
+            ("foot.l", "lower_leg.l", joints.l_foot, l_foot_loc, l_foot_loc + Vector((0, -0.1, 0))),
+            ("foot.r", "lower_leg.r", joints.r_foot, r_foot_loc, r_foot_loc + Vector((0, -0.1, 0))),
         ]
 
         bones = {}
 
-        for name, parent_name, _, tail_loc, head_loc in bone_definitions:
+        for name, parent_name, _, head_loc, tail_loc in bone_definitions:
             bone = edit_bones.new(name)
-
-            if parent_name:
-                bone.parent = bones[parent_name]
-                bone.use_connect = True
 
             bone.head = head_loc
             bone.tail = tail_loc
 
             bones[name] = bone
 
+            if parent_name:
+                bone.parent = bones[parent_name]
+                bone.use_connect = True
+
         # Add constraints
         bpy.ops.object.mode_set(mode="POSE")
         for name, _, parent_obj, _, _ in bone_definitions:
             if parent_obj:
                 pose_bone: bpy.types.PoseBone = armature_obj.pose.bones.get(name)
+                if not pose_bone:
+                    print(f"No bone for {name}")
+                    continue
 
-                if name in ["root", "head", "hand.l", "hand.r"]:
+                if name in ["root", "head"]:
                     # Location and rotation (no scale because it gets weird)
                     constraint_loc = pose_bone.constraints.new("COPY_LOCATION")
                     constraint_loc.name = "Tracker Binding Location"
@@ -113,11 +141,18 @@ class BuildArmatureOperator(bpy.types.Operator):
                     constraint_rot.name = "Tracker Binding Rotation"
                     constraint_rot.target = parent_obj
 
+                if name in ["hand.l", "hand.r", "foot.r", "foot.l"]:
+                    constraint = pose_bone.constraints.new("IK")
+                    constraint.name = "Tracker Binding Child"
+                    constraint.target = parent_obj
+                    constraint.chain_count = 1
+                    constraint.use_rotation = True
+
                 # IK for head, hands, and feet; copy for rest
                 if name in ["lower_arm.l", "lower_arm.r", "upper_arm.l", "upper_arm.r",
                             "lower_leg.l", "lower_leg.r", "upper_leg.l", "upper_leg.r"]:
-                    constraint = pose_bone.constraints.new("STRETCH_TO")
-                    constraint.name = "Tracker Binding Stretch"
+                    constraint = pose_bone.constraints.new("DAMPED_TRACK")
+                    constraint.name = "Tracker Binding Track"
                     constraint.target = parent_obj
 
         # Restore mode
