@@ -5,7 +5,8 @@ from .operators import (
     ToggleActiveOperator,
     ToggleCalibrationOperator,
     CreateRefsOperator,
-    ToggleRecordOperator
+    ToggleRecordOperator,
+    BuildArmatureOperator
 )
 from .properties import OVRContext
 
@@ -27,9 +28,9 @@ class PANEL_UL_TrackerList(bpy.types.UIList):
         layout.prop(selected_tracker, "name", text="", emboss=False, icon_value=icon)
 
 
-class OpenVRPanel(View3DPanel, bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_openvr_menu"
-    bl_label = "Tracking Toolkit"
+class RecorderPanel(View3DPanel, bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_openvr_recorder_menu"
+    bl_label = "Tracking Toolkit Recorder"
     bl_category = "Track TK"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -38,7 +39,7 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
         layout = self.layout
         ovr_context: OVRContext = context.scene.OVRContext
 
-        layout.label(text="Tracking Toolkit")
+        layout.label(text="Tracking Toolkit Recorder")
 
         # Toggle active button
         # It's super annoying to have Blender not save the state of this button on save, so we just label it funny
@@ -113,3 +114,35 @@ class OpenVRPanel(View3DPanel, bpy.types.Panel):
             icon=active_record_icon,
             depress=ovr_context.recording
         )
+
+
+class ArmaturePanel(View3DPanel, bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_openvr_armature_menu"
+    bl_label = "Armature Tools"
+    bl_category = "Track TK"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+
+    def draw(self, context: bpy.types.Context):
+        layout = self.layout
+        ovr_context: OVRContext = context.scene.OVRContext
+
+        joints = ovr_context.armature_joints
+
+        layout.prop(joints, "head")
+        layout.prop(joints, "chest")
+        layout.prop(joints, "hips")
+
+        layout.prop(joints, "r_hand")
+        layout.prop(joints, "l_hand")
+
+        layout.prop(joints, "r_elbow")
+        layout.prop(joints, "l_elbow")
+
+        layout.prop(joints, "r_foot")
+        layout.prop(joints, "l_foot")
+
+        layout.prop(joints, "r_knee")
+        layout.prop(joints, "l_knee")
+
+        layout.operator(BuildArmatureOperator.bl_idname)

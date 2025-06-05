@@ -1,9 +1,132 @@
 import bpy
 import openvr
+from mathutils import Vector
 
 from .properties import Preferences, OVRTransform, OVRContext
 from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview, init_handles
 from .. import __package__ as base_package
+
+
+class BuildArmatureOperator(bpy.types.Operator):
+    bl_idname = "id.build_armature"
+    bl_label = "Build OpenVR armature"
+
+    def execute(self, context):
+        ovr_context: OVRContext = context.scene.OVRContext
+
+        prev_select = None
+        if context.object:
+            prev_select = context.object
+
+            prev_mode = context.object.mode
+            bpy.ops.object.mode_set(mode="OBJECT")
+        else:
+            prev_mode = "OBJECT"
+
+        bpy.ops.object.armature_add(enter_editmode=True, align="WORLD", location=(0, 0, 0))
+        armature_obj = context.object
+        armature_obj.name = "OVR_Armature"
+        armature_data = armature_obj.data
+        armature_data.name = "OVR_Armature_Data"
+
+        armature_data.show_names = True
+        armature_data.display_type = "STICK"
+
+        edit_bones = armature_data.edit_bones
+        # Clear any default bone Blender might have added
+        for bone in list(edit_bones):  # Iterate over a copy as we are modifying the list
+            edit_bones.remove(bone)
+
+        def get_loc(obj_prop):
+            if obj_prop:
+                return obj_prop.matrix_world.translation.copy()  # Use a copy to prevent changing it
+            return None
+
+        joints = ovr_context.armature_joints
+
+        head_loc = get_loc(joints.head)
+        chest_loc = get_loc(joints.chest) or (head_loc - Vector((0, 0, 0.2)))
+        hips_loc = get_loc(joints.hips) or (head_loc - Vector((0, 0, 0.4))) or (chest_loc - Vector((0, 0, 0.2)))
+
+        l_hand_loc = get_loc(joints.l_hand)
+        r_hand_loc = get_loc(joints.r_hand)
+        l_elbow_loc = get_loc(joints.l_elbow)
+        r_elbow_loc = get_loc(joints.r_elbow)
+
+        l_foot_loc = get_loc(joints.l_foot)
+        r_foot_loc = get_loc(joints.r_foot)
+        l_knee_loc = get_loc(joints.l_knee) or (l_foot_loc + Vector((0, 0, 0.4)))
+        r_knee_loc = get_loc(joints.r_knee) or (r_foot_loc + Vector((0, 0, 0.4)))
+
+        # Name, parent name, parent_obj, tail loc, head loc, head_obj
+        bone_definitions = [
+            ("root", None, joints.hips, hips_loc, hips_loc + Vector((0, 0, -0.05))),  # Hips to below hips
+            ("spine", "root", joints.hips, chest_loc, hips_loc),  # Hips to neck
+            ("head", "spine", joints.head, head_loc + Vector((0, 0, 0.1)), head_loc),  # Head to above head
+
+            # Hands
+            ("upper_arm.l", "spine", joints.l_elbow, l_elbow_loc, chest_loc),  # L elbow to chest
+            ("lower_arm.l", "upper_arm.l", joints.l_hand, l_hand_loc, l_elbow_loc),  # L hand to elbow
+            ("hand.l", "lower_arm.l", joints.l_hand, l_hand_loc + Vector((0, 0, 0.1)), l_hand_loc),
+
+            ("upper_arm.r", "spine", joints.r_elbow, r_elbow_loc, chest_loc),  # R elbow to chest
+            ("lower_arm.r", "upper_arm.r", joints.r_hand, r_hand_loc, r_elbow_loc),  # R hand to elbow
+            ("hand.r", "lower_arm.r", joints.r_hand, r_hand_loc + Vector((0, 0, 0.1)), r_hand_loc),
+
+            # Legs
+            ("upper_leg.l", "root", joints.l_knee or joints.l_foot, l_knee_loc, hips_loc),  # L elbow to hips
+            ("lower_leg.l", "upper_leg.l", joints.l_foot, l_foot_loc, l_knee_loc),  # L foot to elbow
+            ("upper_leg.r", "root", joints.r_knee or joints.r_foot, r_knee_loc, hips_loc),  # R elbow to hips
+            ("lower_leg.r", "upper_leg.r", joints.r_foot, r_foot_loc, r_knee_loc),  # R foot to elbo
+
+            ("foot.l", "lower_leg.l", joints.l_foot, l_foot_loc + Vector((0, 0.1, 0)), l_foot_loc),
+            ("foot.r", "lower_leg.r", joints.r_foot, r_foot_loc + Vector((0, 0.1, 0)), r_foot_loc),
+        ]
+
+        bones = {}
+
+        for name, parent_name, _, tail_loc, head_loc in bone_definitions:
+            bone = edit_bones.new(name)
+
+            if parent_name:
+                bone.parent = bones[parent_name]
+                bone.use_connect = True
+
+            bone.head = head_loc
+            bone.tail = tail_loc
+
+            bones[name] = bone
+
+        # Add constraints
+        bpy.ops.object.mode_set(mode="POSE")
+        for name, _, parent_obj, _, _ in bone_definitions:
+            if parent_obj:
+                pose_bone: bpy.types.PoseBone = armature_obj.pose.bones.get(name)
+
+                if name in ["root", "head", "hand.l", "hand.r"]:
+                    # Location and rotation (no scale because it gets weird)
+                    constraint_loc = pose_bone.constraints.new("COPY_LOCATION")
+                    constraint_loc.name = "Tracker Binding Location"
+                    constraint_loc.target = parent_obj
+
+                    constraint_rot = pose_bone.constraints.new("COPY_ROTATION")
+                    constraint_rot.name = "Tracker Binding Rotation"
+                    constraint_rot.target = parent_obj
+
+                # IK for head, hands, and feet; copy for rest
+                if name in ["lower_arm.l", "lower_arm.r", "upper_arm.l", "upper_arm.r",
+                            "lower_leg.l", "lower_leg.r", "upper_leg.l", "upper_leg.r"]:
+                    constraint = pose_bone.constraints.new("STRETCH_TO")
+                    constraint.name = "Tracker Binding Stretch"
+                    constraint.target = parent_obj
+
+        # Restore mode
+        if prev_select:
+            context.view_layer.objects.active = prev_select
+            prev_select.select_set(True)
+        bpy.ops.object.mode_set(mode=prev_mode)
+
+        return {"FINISHED"}
 
 
 class ToggleRecordOperator(bpy.types.Operator):

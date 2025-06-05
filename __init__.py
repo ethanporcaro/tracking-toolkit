@@ -14,10 +14,12 @@ from .tracking_toolkit.operators import (
     CreateRefsOperator,
     ToggleActiveOperator,
     ToggleCalibrationOperator,
-    ToggleRecordOperator
+    ToggleRecordOperator,
+    BuildArmatureOperator
 )
 from .tracking_toolkit.properties import (
     OVRContext,
+    OVRArmatureJoints,
     OVRTracker,
     OVRTarget,
     OVRTransform,
@@ -25,7 +27,7 @@ from .tracking_toolkit.properties import (
     Preferences
 )
 from .tracking_toolkit.tracking import stop_preview
-from .tracking_toolkit.ui import PANEL_UL_TrackerList, OpenVRPanel
+from .tracking_toolkit.ui import PANEL_UL_TrackerList, RecorderPanel, ArmaturePanel
 
 
 def scene_update_callback(scene: bpy.types.Scene, depsgraph):
@@ -51,6 +53,7 @@ def register():
     bpy.utils.register_class(OVRTarget)
     bpy.utils.register_class(OVRTracker)
     bpy.utils.register_class(OVRInput)
+    bpy.utils.register_class(OVRArmatureJoints)
     bpy.utils.register_class(OVRContext)
 
     # Operators
@@ -58,13 +61,15 @@ def register():
     bpy.utils.register_class(ToggleActiveOperator)
     bpy.utils.register_class(CreateRefsOperator)
     bpy.utils.register_class(ToggleRecordOperator)
+    bpy.utils.register_class(BuildArmatureOperator)
 
     # Contexts
     bpy.types.Scene.OVRContext = bpy.props.PointerProperty(type=OVRContext)
 
     # UI
     bpy.utils.register_class(PANEL_UL_TrackerList)
-    bpy.utils.register_class(OpenVRPanel)
+    bpy.utils.register_class(RecorderPanel)
+    bpy.utils.register_class(ArmaturePanel)
 
     # Handlers
     bpy.app.handlers.depsgraph_update_post.clear()
@@ -78,12 +83,14 @@ def unregister():
 
     # UI
     bpy.utils.unregister_class(PANEL_UL_TrackerList)
-    bpy.utils.unregister_class(OpenVRPanel)
+    bpy.utils.unregister_class(RecorderPanel)
+    bpy.utils.unregister_class(ArmaturePanel)
 
     # Contexts
     del bpy.types.Scene.OVRContext
 
     # Classes
+    bpy.utils.unregister_class(BuildArmatureOperator)
     bpy.utils.unregister_class(ToggleRecordOperator)
     bpy.utils.unregister_class(CreateRefsOperator)
     bpy.utils.unregister_class(ToggleActiveOperator)
@@ -91,6 +98,7 @@ def unregister():
 
     # Props
     bpy.utils.unregister_class(OVRContext)
+    bpy.utils.unregister_class(OVRArmatureJoints)
     bpy.utils.unregister_class(OVRInput)
     bpy.utils.unregister_class(OVRTracker)
     bpy.utils.unregister_class(OVRTarget)

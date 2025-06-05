@@ -97,6 +97,29 @@ class OVRInput(bpy.types.PropertyGroup):
     b_button: bpy.props.BoolProperty(name="B pressed", default=False)
 
 
+def tracker_joint_filter(self: bpy.types.bpy_struct, obj: bpy.types.ID) -> bool:
+    ovr_context = bpy.context.scene.OVRContext
+    return True # any(obj == tracker.joint.object for tracker in ovr_context.trackers)
+
+
+class OVRArmatureJoints(bpy.types.PropertyGroup):
+    head: bpy.props.PointerProperty(name="Head", type=bpy.types.Object, poll=tracker_joint_filter)
+    chest: bpy.props.PointerProperty(name="Chest", type=bpy.types.Object, poll=tracker_joint_filter)
+    hips: bpy.props.PointerProperty(name="Hips", type=bpy.types.Object, poll=tracker_joint_filter)
+
+    r_hand: bpy.props.PointerProperty(name="Right hand", type=bpy.types.Object, poll=tracker_joint_filter)
+    l_hand: bpy.props.PointerProperty(name="Left hand", type=bpy.types.Object, poll=tracker_joint_filter)
+
+    r_elbow: bpy.props.PointerProperty(name="Right elbow", type=bpy.types.Object, poll=tracker_joint_filter)
+    l_elbow: bpy.props.PointerProperty(name="Left elbow", type=bpy.types.Object, poll=tracker_joint_filter)
+
+    r_foot: bpy.props.PointerProperty(name="Right foot", type=bpy.types.Object, poll=tracker_joint_filter)
+    l_foot: bpy.props.PointerProperty(name="Left foot", type=bpy.types.Object, poll=tracker_joint_filter)
+
+    r_knee: bpy.props.PointerProperty(name="Right knee", type=bpy.types.Object, poll=tracker_joint_filter)
+    l_knee: bpy.props.PointerProperty(name="Left knee", type=bpy.types.Object, poll=tracker_joint_filter)
+
+
 def selected_tracker_change_callback(self: bpy.types.bpy_struct, context):
     selected_tracker: OVRTracker = self.trackers[self.selected_tracker]
 
@@ -125,6 +148,8 @@ class OVRContext(bpy.types.PropertyGroup):
 
     l_input: bpy.props.PointerProperty(type=OVRInput, name="Left controller input state")
     r_input: bpy.props.PointerProperty(type=OVRInput, name="Right controller input state")
+
+    armature_joints: bpy.props.PointerProperty(type=OVRArmatureJoints, name="Armature Joints")
 
 
 class Preferences(bpy.types.AddonPreferences):
