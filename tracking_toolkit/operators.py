@@ -1,9 +1,180 @@
 import bpy
 import openvr
+from mathutils import Vector
 
 from .properties import Preferences, OVRTransform, OVRContext
-from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview
+from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview, init_handles
 from .. import __package__ as base_package
+
+
+class BuildArmatureOperator(bpy.types.Operator):
+    bl_idname = "id.build_armature"
+    bl_label = "Build OpenVR armature"
+
+    def execute(self, context):
+        ovr_context: OVRContext = context.scene.OVRContext
+
+        # Store selection and mode state
+        prev_select = None
+        if context.object:
+            prev_select = context.object
+
+            prev_mode = context.object.mode
+            bpy.ops.object.mode_set(mode="OBJECT")
+        else:
+            prev_mode = "OBJECT"
+
+        # Create armature
+        armature_obj = context.scene.objects.get("OVR Armature")
+        if not armature_obj:
+            bpy.ops.object.armature_add(enter_editmode=True, align="WORLD", location=(0, 0, 0))
+            armature_obj = context.object
+            armature_obj.name = "OVR Armature"
+
+        context.view_layer.objects.active = armature_obj
+        bpy.ops.object.mode_set(mode="EDIT")
+
+        armature_data = armature_obj.data
+        armature_data.name = "OVR Armature Data"
+        armature_data.show_names = True
+        armature_data.display_type = "STICK"
+
+        edit_bones = armature_data.edit_bones
+        # Clear any default bone Blender might have added, or all bones if recreating
+        for bone in list(edit_bones):  # Iterate over a copy as we are modifying the list
+            edit_bones.remove(bone)
+
+        def get_loc(obj_prop) -> Vector | None:
+            if obj_prop:
+                return obj_prop.matrix_world.translation.copy()  # Use a copy to prevent changing it
+            return None
+
+        joints = ovr_context.armature_joints
+
+        foot_height = (get_loc(joints.l_foot).z + get_loc(joints.r_foot).z) / 2  # Average of feet
+
+        # Offset floor
+        head_height = get_loc(joints.head).z - foot_height
+        foot_height = 0
+
+        hips_height = get_loc(joints.hips).z
+        chest_height = (get_loc(joints.chest).z
+                        if joints.chest
+                        else (hips_height + head_height) / 2)  # If no chest, average hips and head
+        knee_height = ((get_loc(joints.l_knee).z + get_loc(joints.r_knee).z) / 2
+                       if joints.l_knee and joints.r_knee
+                       else (foot_height + hips_height) / 2)  # If no knees, average hips and feet
+        neck_height = head_height - head_height / 8  # Person is 8 heads tall about
+
+        # Skip elbow height since we are t-posing
+
+        head_loc = Vector((0, 0, head_height))
+        hips_loc = Vector((0, 0, hips_height))
+        chest_loc = Vector((0, 0, chest_height))
+        neck_loc = Vector((0, 0, neck_height))
+
+        l_foot_loc = Vector((0.1, 0, foot_height))
+        r_foot_loc = Vector((-0.1, 0, foot_height))
+
+        half_height = head_height / 2  # Half of wingspan
+
+        # Offset 0.1 since it's added back later for hand tips
+        l_hand_loc = Vector((half_height - 0.1, 0, chest_height))
+        r_hand_loc = Vector((-half_height + 0.1, 0, chest_height))
+
+        elbow_offset = half_height / 2  # Elbows halfway between hands
+
+        l_elbow_loc = Vector((elbow_offset, 0, chest_height))
+        r_elbow_loc = Vector((-elbow_offset, 0, chest_height))
+
+        l_knee_loc = Vector((0.1, 0, knee_height))
+        r_knee_loc = Vector((-0.1, 0, knee_height))
+
+        # Name, parent name, parent_obj, head_loc, tail_loc, head_obj
+        bone_definitions = [
+            ("root", None, joints.hips, Vector((0, 0, half_height)), hips_loc),  # Hips to below hips
+            ("spine", "root", joints.hips, hips_loc, neck_loc),  # Hips to neck
+            ("head", "spine", joints.head, chest_loc, head_loc),  # Chest to head
+
+            # Arms and hands
+            ("upper_arm.l", "spine", joints.l_elbow, chest_loc, l_elbow_loc),  # Chest to elbow
+            ("upper_arm.r", "spine", joints.r_elbow, chest_loc, r_elbow_loc),  # Chest to elbow
+
+            ("lower_arm.l", "upper_arm.l", joints.l_hand, l_elbow_loc, l_hand_loc),  # Elbow to hand
+            ("lower_arm.r", "upper_arm.r", joints.r_hand, r_elbow_loc, r_hand_loc),  # Elbow to hand
+
+            ("hand.l", "lower_arm.l", joints.l_hand, l_hand_loc, l_hand_loc + Vector((0.1, 0, 0))),  # Hand to hand tip
+            ("hand.r", "lower_arm.r", joints.r_hand, r_hand_loc, r_hand_loc + Vector((-0.1, 0, 0))),  # Hand to hand tip
+
+            # Legs and feet
+            ("upper_leg.l", "root", joints.l_knee or joints.l_foot, hips_loc, l_knee_loc),  # Hips to knee
+            ("upper_leg.r", "root", joints.r_knee or joints.r_foot, hips_loc, r_knee_loc),  # Hips to knee
+
+            ("lower_leg.l", "upper_leg.l", joints.l_foot, l_knee_loc, l_foot_loc),  # L foot to elbow
+            ("lower_leg.r", "upper_leg.r", joints.r_foot, r_knee_loc, r_foot_loc),  # R foot to elbo
+
+            ("foot.l", "lower_leg.l", joints.l_foot, l_foot_loc, l_foot_loc + Vector((0, -0.1, 0))),
+            ("foot.r", "lower_leg.r", joints.r_foot, r_foot_loc, r_foot_loc + Vector((0, -0.1, 0))),
+        ]
+
+        bones = {}
+
+        for name, parent_name, _, head_loc, tail_loc in bone_definitions:
+            bone = edit_bones.new(name)
+
+            bone.head = head_loc
+            bone.tail = tail_loc
+
+            bones[name] = bone
+
+            if parent_name:
+                bone.parent = bones[parent_name]
+                bone.use_connect = True
+
+        # Add constraints
+        bpy.ops.object.mode_set(mode="POSE")
+        for name, _, parent_obj, _, _ in bone_definitions:
+            if parent_obj:
+                pose_bone: bpy.types.PoseBone = armature_obj.pose.bones.get(name)
+                if not pose_bone:
+                    print(f"No bone for {name}")
+                    continue
+
+                # Clear existing
+                for constraint in pose_bone.constraints:
+                    pose_bone.constraints.remove(constraint)
+
+                if name in ["root", "head"]:
+                    # Location and rotation (no scale because it gets weird)
+                    constraint_loc = pose_bone.constraints.new("COPY_LOCATION")
+                    constraint_loc.name = "Tracker Binding Location"
+                    constraint_loc.target = parent_obj
+
+                    constraint_rot = pose_bone.constraints.new("COPY_ROTATION")
+                    constraint_rot.name = "Tracker Binding Rotation"
+                    constraint_rot.target = parent_obj
+
+                if name in ["hand.l", "hand.r", "foot.r", "foot.l"]:
+                    constraint = pose_bone.constraints.new("IK")
+                    constraint.name = "Tracker Binding Child"
+                    constraint.target = parent_obj
+                    constraint.chain_count = 2
+                    constraint.use_rotation = True
+
+                # IK for head, hands, and feet; copy for rest
+                if name in ["lower_arm.l", "lower_arm.r", "upper_arm.l", "upper_arm.r",
+                            "lower_leg.l", "lower_leg.r", "upper_leg.l", "upper_leg.r"]:
+                    constraint = pose_bone.constraints.new("DAMPED_TRACK")
+                    constraint.name = "Tracker Binding Track"
+                    constraint.target = parent_obj
+
+        # Restore mode
+        if prev_select:
+            context.view_layer.objects.active = prev_select
+            prev_select.select_set(True)
+        bpy.ops.object.mode_set(mode=prev_mode)
+
+        return {"FINISHED"}
 
 
 class ToggleRecordOperator(bpy.types.Operator):
@@ -133,38 +304,11 @@ class ToggleActiveOperator(bpy.types.Operator):
             openvr.shutdown()
         else:
             openvr.init(openvr.VRApplication_Scene)
+            init_handles()
             load_trackers(ovr_context)
             start_preview(ovr_context)
 
         ovr_context.enabled = not ovr_context.enabled
-        return {"FINISHED"}
-
-
-class ResetTrackersOperator(bpy.types.Operator):
-    bl_idname = "id.reset_trackers"
-    bl_label = "Are you sure you want to trim and reset ALL OpenVR Trackers?"
-    bl_options = {"REGISTER", "INTERNAL"}
-
-    def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-        if ovr_context.enabled:
-            load_trackers(ovr_context, reset=True)
-
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
-
-
-class ReloadTrackersOperator(bpy.types.Operator):
-    bl_idname = "id.reload_trackers"
-    bl_label = "Reload OpenVR tracker list"
-
-    def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-        if ovr_context.enabled:
-            load_trackers(ovr_context)
-
         return {"FINISHED"}
 
 
@@ -175,6 +319,12 @@ class CreateRefsOperator(bpy.types.Operator):
 
     def execute(self, context):
         ovr_context: OVRContext = context.scene.OVRContext
+        if not ovr_context.enabled:
+            self.report(
+                {"ERROR"},
+                "OpenVR has not been connected yet"
+            )
+            return {"FINISHED"}
 
         # Set to object mode while keeping track of the previous one
         prev_obj = bpy.context.object
@@ -220,6 +370,9 @@ class CreateRefsOperator(bpy.types.Operator):
             )
             return {"FINISHED"}
 
+        load_trackers(ovr_context)
+
+        # Default reference transformations
         tracker_model.location = (0, 0, 0)
         tracker_model.rotation_euler = (0, 0, 0)
 
@@ -277,9 +430,9 @@ class CreateRefsOperator(bpy.types.Operator):
                 tracker_joint.show_in_front = True
                 tracker_target.hide_render = True
 
-            # Assign names
-            tracker.target.target = tracker_target.name
-            tracker.target.joint = tracker_joint.name
+            # Assign objects
+            tracker.target.object = tracker_target
+            tracker.joint.object = tracker_joint
 
             # Set up parenting
             tracker_target.parent = root_empty

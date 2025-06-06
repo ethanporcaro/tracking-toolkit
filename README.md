@@ -1,6 +1,6 @@
 # Tracking Toolkit
 
-![assets/cover.png](assets/cover.png)
+![images/cover.png](images/cover.png)
 
 ## Installation
 
@@ -10,7 +10,7 @@ Drag this image onto the Blender interface. If it asks to create a repo, accept,
 
 If you are updating, you can drag the image or check for updates in the Blender preferences.
 
-[<img src="assets/drag_prompt.png" width="200px"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fraw.githubusercontent.com%2Fethanporcaro%2Ftracking-toolkit%2Frefs%2Fheads%2Fmain%2Findex.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
+[<img src="images/drag_prompt.png" width="200px"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fraw.githubusercontent.com%2Fethanporcaro%2Ftracking-toolkit%2Frefs%2Fheads%2Fmain%2Findex.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
 
 ### Manual
 
@@ -29,10 +29,7 @@ Then you should see the trackers populated in the dropdown. The rest of the menu
 
 [<img src="images/step2.png" width="400px"/>](images/step2.png)
 
-### Reload Trackers
-
-This button will query OpenVR for new trackers. It will not remove old ones, and it will not create tracked reference objects for them.
-
+***Note, this image may be outdated. The UI changes often.***
 
 ### Create References
 
@@ -40,10 +37,6 @@ This will create pairs of objects for each tracked device.
 
 * One is the 'target'. The 'target' will track exactly to the provided data from OpenVR. Any movements of it will be reset.
 * The other is the 'joint'. The 'joint' is child of the 'target' and can be offset to correct alignment issues. See the calibration instructions.
-
-### Trim And Reset Trackers
-
-This will essentially wipe all trackers and their data from the list and reload them. This currently resets their names too, but a better fix for that is planned.
 
 This operation is generally undo-able, but be careful nonetheless.
 
@@ -92,6 +85,19 @@ When you press the space bar, the realtime tracking will temporarily pause and t
 
 It is encouraged to save each successful take to an NLA track, so it doesn't get overwritten.
 
+
+## Binding bones
+
+You can use the `Default Armature`, `Override Armature`, and `Bound Bone` property fields to bind bones to trackers:
+
+* `Default Armature` is the main armature the bones are a part of. You will set this to the armature you want to control.
+
+* `Override Armature` is a per-tracker armature that can be set when you want to control multiple armatures at the same time. Usually, you will leave this blank.
+
+* `Bound Bone` is the bone you want to bind the tracker joint to. This will add a `Copy Transforms` constraint.
+
+Do not rename the crated constraint, otherwise it will fail to remove itself when you select a different bone.
+
 ## Troubleshooting
 
 You will probably experience some sort of issue as this extension is being refined.
@@ -131,7 +137,7 @@ That isn't to say that the aforementioned developers had a **huge** impact on th
 
 This extension is licensed under [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
 
-Logos and assets under `/assets` are in the [Public Domain (CC0)](https://spdx.org/licenses/CC0-1.0.html).
+Logos and images under `/images` are in the [Public Domain (CC0)](https://spdx.org/licenses/CC0-1.0.html).
 
 ```text
 Copyright (C) 2025 Ethan Porcaro
