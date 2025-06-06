@@ -65,6 +65,9 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         )
 
         # Bone binding
+        layout.label(text="Bone binding")
+        layout.label(text="Note: you may want to use the Armature Tools panel instead")
+
         if ovr_context.selected_tracker and ovr_context.selected_tracker < len(ovr_context.trackers):
             selected_tracker = ovr_context.trackers[ovr_context.selected_tracker]
 

@@ -1,6 +1,6 @@
 import bpy
 import openvr
-from mathutils import Vector, Matrix
+from mathutils import Vector
 
 from .properties import Preferences, OVRTransform, OVRContext
 from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview, init_handles
@@ -14,6 +14,7 @@ class BuildArmatureOperator(bpy.types.Operator):
     def execute(self, context):
         ovr_context: OVRContext = context.scene.OVRContext
 
+        # Store selection and mode state
         prev_select = None
         if context.object:
             prev_select = context.object
@@ -23,17 +24,23 @@ class BuildArmatureOperator(bpy.types.Operator):
         else:
             prev_mode = "OBJECT"
 
-        bpy.ops.object.armature_add(enter_editmode=True, align="WORLD", location=(0, 0, 0))
-        armature_obj = context.object
-        armature_obj.name = "OVR_Armature"
-        armature_data = armature_obj.data
-        armature_data.name = "OVR_Armature_Data"
+        # Create armature
+        armature_obj = context.scene.objects.get("OVR Armature")
+        if not armature_obj:
+            bpy.ops.object.armature_add(enter_editmode=True, align="WORLD", location=(0, 0, 0))
+            armature_obj = context.object
+            armature_obj.name = "OVR Armature"
 
+        context.view_layer.objects.active = armature_obj
+        bpy.ops.object.mode_set(mode="EDIT")
+
+        armature_data = armature_obj.data
+        armature_data.name = "OVR Armature Data"
         armature_data.show_names = True
         armature_data.display_type = "STICK"
 
         edit_bones = armature_data.edit_bones
-        # Clear any default bone Blender might have added
+        # Clear any default bone Blender might have added, or all bones if recreating
         for bone in list(edit_bones):  # Iterate over a copy as we are modifying the list
             edit_bones.remove(bone)
 
@@ -57,12 +64,14 @@ class BuildArmatureOperator(bpy.types.Operator):
         knee_height = ((get_loc(joints.l_knee).z + get_loc(joints.r_knee).z) / 2
                        if joints.l_knee and joints.r_knee
                        else (foot_height + hips_height) / 2)  # If no knees, average hips and feet
+        neck_height = head_height - head_height / 8  # Person is 8 heads tall about
 
         # Skip elbow height since we are t-posing
 
         head_loc = Vector((0, 0, head_height))
         hips_loc = Vector((0, 0, hips_height))
         chest_loc = Vector((0, 0, chest_height))
+        neck_loc = Vector((0, 0, neck_height))
 
         l_foot_loc = Vector((0.1, 0, foot_height))
         r_foot_loc = Vector((-0.1, 0, foot_height))
@@ -73,19 +82,19 @@ class BuildArmatureOperator(bpy.types.Operator):
         l_hand_loc = Vector((half_height - 0.1, 0, chest_height))
         r_hand_loc = Vector((-half_height + 0.1, 0, chest_height))
 
-        quarter_height = half_height / 2  # Elbows halfway between hands
+        elbow_offset = half_height / 2  # Elbows halfway between hands
 
-        l_elbow_loc = Vector((quarter_height, 0, chest_height))
-        r_elbow_loc = Vector((-quarter_height, 0, chest_height))
+        l_elbow_loc = Vector((elbow_offset, 0, chest_height))
+        r_elbow_loc = Vector((-elbow_offset, 0, chest_height))
 
         l_knee_loc = Vector((0.1, 0, knee_height))
         r_knee_loc = Vector((-0.1, 0, knee_height))
 
         # Name, parent name, parent_obj, head_loc, tail_loc, head_obj
         bone_definitions = [
-            ("root", None, joints.hips, hips_loc + Vector((0, 0, -0.05)), hips_loc),  # Hips to below hips
-            ("spine", "root", joints.hips, hips_loc, chest_loc),  # Hips to neck
-            ("head", "spine", joints.hips, chest_loc, head_loc),  # Chest to head
+            ("root", None, joints.hips, Vector((0, 0, half_height)), hips_loc),  # Hips to below hips
+            ("spine", "root", joints.hips, hips_loc, neck_loc),  # Hips to neck
+            ("head", "spine", joints.head, chest_loc, head_loc),  # Chest to head
 
             # Arms and hands
             ("upper_arm.l", "spine", joints.l_elbow, chest_loc, l_elbow_loc),  # Chest to elbow
@@ -131,6 +140,10 @@ class BuildArmatureOperator(bpy.types.Operator):
                     print(f"No bone for {name}")
                     continue
 
+                # Clear existing
+                for constraint in pose_bone.constraints:
+                    pose_bone.constraints.remove(constraint)
+
                 if name in ["root", "head"]:
                     # Location and rotation (no scale because it gets weird)
                     constraint_loc = pose_bone.constraints.new("COPY_LOCATION")
@@ -145,7 +158,7 @@ class BuildArmatureOperator(bpy.types.Operator):
                     constraint = pose_bone.constraints.new("IK")
                     constraint.name = "Tracker Binding Child"
                     constraint.target = parent_obj
-                    constraint.chain_count = 1
+                    constraint.chain_count = 2
                     constraint.use_rotation = True
 
                 # IK for head, hands, and feet; copy for rest
