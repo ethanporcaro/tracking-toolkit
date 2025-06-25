@@ -452,6 +452,10 @@ class CreateRefsOperator(bpy.types.Operator):
             tracker_target.parent = root_empty
             tracker_joint.parent = tracker_target
 
+            # Set up rotation modes
+            tracker_target.rotation_mode = "QUATERNION"
+            tracker_joint.rotation_mode = "QUATERNION"
+
         # Clean up
         select_model(tracker_model)
         bpy.ops.object.delete()
