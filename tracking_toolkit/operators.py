@@ -52,18 +52,22 @@ class BuildArmatureOperator(bpy.types.Operator):
         joints = ovr_context.armature_joints
 
         foot_height = (get_loc(joints.l_foot).z + get_loc(joints.r_foot).z) / 2  # Average of feet
+        float_height = foot_height
 
         # Offset floor
-        head_height = get_loc(joints.head).z - foot_height
         foot_height = 0
 
-        hips_height = get_loc(joints.hips).z
-        chest_height = (get_loc(joints.chest).z
+        head_height = get_loc(joints.head).z - float_height
+
+        hips_height = get_loc(joints.hips).z - float_height
+
+        chest_height = (get_loc(joints.chest).z - float_height
                         if joints.chest
                         else (hips_height + head_height) / 2)  # If no chest, average hips and head
-        knee_height = ((get_loc(joints.l_knee).z + get_loc(joints.r_knee).z) / 2
+        knee_height = ((get_loc(joints.l_knee).z + get_loc(joints.r_knee).z) / 2 - float_height
                        if joints.l_knee and joints.r_knee
                        else (foot_height + hips_height) / 2)  # If no knees, average hips and feet
+
         neck_height = head_height - head_height / 8  # Person is 8 heads tall about
 
         # Skip elbow height since we are t-posing
@@ -72,9 +76,10 @@ class BuildArmatureOperator(bpy.types.Operator):
         hips_loc = Vector((0, 0, hips_height))
         chest_loc = Vector((0, 0, chest_height))
         neck_loc = Vector((0, 0, neck_height))
+        root_loc = Vector((0, 0, hips_height - 0.01))
 
-        l_foot_loc = Vector((0.1, 0, foot_height))
-        r_foot_loc = Vector((-0.1, 0, foot_height))
+        l_foot_loc = Vector((0.15, 0, foot_height))
+        r_foot_loc = Vector((-0.15, 0, foot_height))
 
         half_height = head_height / 2  # Half of wingspan
 
@@ -83,38 +88,39 @@ class BuildArmatureOperator(bpy.types.Operator):
         r_hand_loc = Vector((-half_height + 0.1, 0, chest_height))
 
         elbow_offset = half_height / 2  # Elbows halfway between hands
+        elbow_height = (chest_height + neck_height) / 2
 
-        l_elbow_loc = Vector((elbow_offset, 0, chest_height))
-        r_elbow_loc = Vector((-elbow_offset, 0, chest_height))
+        l_elbow_loc = Vector((elbow_offset, 0, elbow_height))
+        r_elbow_loc = Vector((-elbow_offset, 0, elbow_height))
 
-        l_knee_loc = Vector((0.1, 0, knee_height))
-        r_knee_loc = Vector((-0.1, 0, knee_height))
+        l_knee_loc = Vector((0.15, -0.2, knee_height))
+        r_knee_loc = Vector((-0.15, -0.2, knee_height))
 
         # Name, parent name, parent_obj, head_loc, tail_loc, head_obj
         bone_definitions = [
-            ("root", None, joints.hips, Vector((0, 0, half_height)), hips_loc),  # Hips to below hips
-            ("spine", "root", joints.hips, hips_loc, neck_loc),  # Hips to neck
+            ("root", None, joints.hips, root_loc, hips_loc),  # Root to hips
+            ("spine", "root", joints.head, hips_loc, neck_loc),  # Hips to neck
             ("head", "spine", joints.head, chest_loc, head_loc),  # Chest to head
 
             # Arms and hands
-            ("upper_arm.l", "spine", joints.l_elbow, chest_loc, l_elbow_loc),  # Chest to elbow
-            ("upper_arm.r", "spine", joints.r_elbow, chest_loc, r_elbow_loc),  # Chest to elbow
+            ("arm.l", "spine", joints.l_elbow, chest_loc, l_elbow_loc),  # Chest to elbow
+            ("arm.r", "spine", joints.r_elbow, chest_loc, r_elbow_loc),  # Chest to elbow
 
-            ("lower_arm.l", "upper_arm.l", joints.l_hand, l_elbow_loc, l_hand_loc),  # Elbow to hand
-            ("lower_arm.r", "upper_arm.r", joints.r_hand, r_elbow_loc, r_hand_loc),  # Elbow to hand
+            ("forearm.l", "arm.l", joints.l_hand, l_elbow_loc, l_hand_loc),  # Elbow to hand
+            ("forearm.r", "arm.r", joints.r_hand, r_elbow_loc, r_hand_loc),  # Elbow to hand
 
-            ("hand.l", "lower_arm.l", joints.l_hand, l_hand_loc, l_hand_loc + Vector((0.1, 0, 0))),  # Hand to hand tip
-            ("hand.r", "lower_arm.r", joints.r_hand, r_hand_loc, r_hand_loc + Vector((-0.1, 0, 0))),  # Hand to hand tip
+            ("hand.l", "forearm.l", joints.l_hand, l_hand_loc, l_hand_loc + Vector((0.1, 0, 0))),  # Hand to hand tip
+            ("hand.r", "forearm.r", joints.r_hand, r_hand_loc, r_hand_loc + Vector((-0.1, 0, 0))),  # Hand to hand tip
 
             # Legs and feet
-            ("upper_leg.l", "root", joints.l_knee or joints.l_foot, hips_loc, l_knee_loc),  # Hips to knee
-            ("upper_leg.r", "root", joints.r_knee or joints.r_foot, hips_loc, r_knee_loc),  # Hips to knee
+            ("thigh.l", "root", joints.l_knee or joints.l_foot, hips_loc, l_knee_loc),  # Hips to knee
+            ("thigh.r", "root", joints.r_knee or joints.r_foot, hips_loc, r_knee_loc),  # Hips to knee
 
-            ("lower_leg.l", "upper_leg.l", joints.l_foot, l_knee_loc, l_foot_loc),  # L foot to elbow
-            ("lower_leg.r", "upper_leg.r", joints.r_foot, r_knee_loc, r_foot_loc),  # R foot to elbo
+            ("leg.l", "thigh.l", joints.l_foot, l_knee_loc, l_foot_loc),  # L foot to elbow
+            ("leg.r", "thigh.r", joints.r_foot, r_knee_loc, r_foot_loc),  # R foot to elbo
 
-            ("foot.l", "lower_leg.l", joints.l_foot, l_foot_loc, l_foot_loc + Vector((0, -0.1, 0))),
-            ("foot.r", "lower_leg.r", joints.r_foot, r_foot_loc, r_foot_loc + Vector((0, -0.1, 0))),
+            ("foot.l", "leg.l", joints.l_foot, l_foot_loc, l_foot_loc + Vector((0, -0.1, 0))),
+            ("foot.r", "leg.r", joints.r_foot, r_foot_loc, r_foot_loc + Vector((0, -0.1, 0))),
         ]
 
         bones = {}
@@ -133,6 +139,16 @@ class BuildArmatureOperator(bpy.types.Operator):
 
         # Add constraints
         bpy.ops.object.mode_set(mode="POSE")
+
+        # FK for elbow or knee trackers (and spine)
+        damped_track_bones = ["spine", "hand.l", "hand.r"]
+        if joints.l_elbow and joints.r_elbow:
+            damped_track_bones.extend(["forearm.l", "forearm.r", "arm.l", "arm.r"])
+
+        if joints.l_knee and joints.r_knee:
+            damped_track_bones.extend(["leg.l", "leg.r", "thigh.l", "thigh.r"])
+
+        # Actually add
         for name, _, parent_obj, _, _ in bone_definitions:
             if parent_obj:
                 pose_bone: bpy.types.PoseBone = armature_obj.pose.bones.get(name)
@@ -159,11 +175,9 @@ class BuildArmatureOperator(bpy.types.Operator):
                     constraint.name = "Tracker Binding Child"
                     constraint.target = parent_obj
                     constraint.chain_count = 2
-                    constraint.use_rotation = True
+                    constraint.use_rotation = "hand" not in name  # Hands rely on damped track
 
-                # IK for head, hands, and feet; copy for rest
-                if name in ["lower_arm.l", "lower_arm.r", "upper_arm.l", "upper_arm.r",
-                            "lower_leg.l", "lower_leg.r", "upper_leg.l", "upper_leg.r"]:
+                if name in damped_track_bones:
                     constraint = pose_bone.constraints.new("DAMPED_TRACK")
                     constraint.name = "Tracker Binding Track"
                     constraint.target = parent_obj
