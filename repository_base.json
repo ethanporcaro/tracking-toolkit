@@ -27,10 +27,7 @@
       ],
       "python_versions": [
         "3"
-      ],
-      "archive_url": "https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip",
-      "archive_size": 1992848,
-      "archive_hash": "sha256:8fafd84a4054622975abc63cc765ede6e1b52c20b9cfdb3ce8304acf65b84a17"
+      ]
     }
   ]
 }
