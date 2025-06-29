@@ -35,7 +35,7 @@ jobs:
           --arg sha "$SHA" \
           '.data[0] + {archive_url: $url, archive_size: $size, archive_hash: $sha}' repository_base.json > repository.json
           cat repository.json
-
+          
       - name: Create release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
