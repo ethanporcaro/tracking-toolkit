@@ -216,7 +216,7 @@ def _insert_action(ovr_context: OVRContext):
 
             tracker_obj.matrix_world = pose
             tracker_obj.keyframe_insert("location", frame=frame)
-            tracker_obj.keyframe_insert("rotation_euler", frame=frame)
+            tracker_obj.keyframe_insert("rotation_quaternion", frame=frame)
             tracker_obj.keyframe_insert("scale", frame=frame)
 
 
