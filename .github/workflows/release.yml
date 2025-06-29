@@ -33,7 +33,7 @@ jobs:
           --arg url "$URL" \
           --argjson size "$FILESIZE" \
           --arg sha "$SHA" \
-          '.data[0] + {archive_url: $url, archive_size: $size, archive_hash: $sha}' repository_base.json > repository.json
+          '.data[0] += {archive_url: $url, archive_size: $size, archive_hash: $sha}' repository_base.json > repository.json
           cat repository.json
 
       - name: Create release
