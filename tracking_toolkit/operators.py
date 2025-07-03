@@ -349,11 +349,13 @@ class CreateRefsOperator(bpy.types.Operator):
 
         # Create root
         root_empty = bpy.data.objects.get("OVR Root")
-        if not root_empty:
-            bpy.ops.object.empty_add(type="CUBE", location=(0, 0, 0))
-            root_empty = bpy.context.object
-            root_empty.name = "OVR Root"
-            root_empty.empty_display_size = 0.1
+        if root_empty:
+            bpy.data.objects.remove(root_empty)
+
+        bpy.ops.object.empty_add(type="CUBE", location=(0, 0, 0))
+        root_empty = bpy.context.object
+        root_empty.name = "OVR Root"
+        root_empty.empty_display_size = 0.1
 
         # Import models
 
@@ -406,6 +408,8 @@ class CreateRefsOperator(bpy.types.Operator):
             # Create new tracker empty if it doesn't exist
             tracker_name = tracker.name
 
+            print(">", tracker_name)
+
             # Chose correct model
             if tracker.type == str(openvr.TrackedDeviceClass_Controller):
                 model = controller_model
@@ -414,35 +418,41 @@ class CreateRefsOperator(bpy.types.Operator):
             else:
                 model = tracker_model
 
+            # Delete existing target
             tracker_target = bpy.data.objects.get(tracker_name)
-            if not tracker_target:
-                # Select render model and duplicate it
-                select_model(model)
+            if tracker_target:
+                bpy.data.objects.remove(tracker_target)
 
-                bpy.ops.object.duplicate()
+            # Create target
+            select_model(model)
+            bpy.ops.object.duplicate()
 
-                tracker_target = bpy.context.object
-                tracker_target.name = tracker_name
+            tracker_target = bpy.context.object
+            tracker_target.name = tracker_name
 
-                tracker_target.show_name = True
-                tracker_target.hide_render = True
+            tracker_target.show_name = True
+            tracker_target.hide_render = True
 
             # Create another empty as a joint offset. This is useful when you use a "Copy Transforms" constraint but
             # the physical tracker doesn't align perfectly with a character's joint
             # Create one if it doesn't exist
             joint_name = f"{tracker_name} Joint"
 
+            # Delete existing joint
             tracker_joint = bpy.data.objects.get(joint_name)
-            if not tracker_joint:
-                select_model(model)
-                bpy.ops.object.duplicate()
+            if tracker_joint:
+                bpy.data.objects.remove(tracker_joint)
 
-                tracker_joint = bpy.context.object
-                tracker_joint.name = joint_name
+            # Create joint
+            select_model(model)
+            bpy.ops.object.duplicate()
 
-                tracker_joint.display_type = "WIRE"
-                tracker_joint.show_in_front = True
-                tracker_target.hide_render = True
+            tracker_joint = bpy.context.object
+            tracker_joint.name = joint_name
+
+            tracker_joint.display_type = "WIRE"
+            tracker_joint.show_in_front = True
+            tracker_target.hide_render = True
 
             # Assign objects
             tracker.target.object = tracker_target
@@ -457,21 +467,22 @@ class CreateRefsOperator(bpy.types.Operator):
             tracker_joint.rotation_mode = "QUATERNION"
 
         # Clean up
-        select_model(tracker_model)
-        bpy.ops.object.delete()
-        select_model(controller_model)
-        bpy.ops.object.delete()
-        select_model(hmd_model)
-        bpy.ops.object.delete()
+        bpy.data.objects.remove(tracker_model)
+        bpy.data.objects.remove(controller_model)
+        bpy.data.objects.remove(hmd_model)
 
         # Restore previous selection
-        if prev_obj:
-            prev_obj.select_set(True)
-            bpy.context.view_layer.objects.active = prev_obj
+        try:
+            if prev_obj:
+                prev_obj.select_set(True)
+                bpy.context.view_layer.objects.active = prev_obj
 
-            # I can't stand warnings, okay?
-            # noinspection PyUnboundLocalVariable
-            if bpy.context.object.mode != prev_mode:  # Safe against linked library immutability
-                bpy.ops.object.mode_set(mode=prev_mode)
+                # I can't stand warnings, okay?
+                # noinspection PyUnboundLocalVariable
+                if bpy.context.object.mode != prev_mode:  # Safe against linked library immutability
+                    bpy.ops.object.mode_set(mode=prev_mode)
+        except ReferenceError:
+            pass
 
+        print("Done")
         return {"FINISHED"}
