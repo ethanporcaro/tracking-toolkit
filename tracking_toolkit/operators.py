@@ -119,8 +119,8 @@ class BuildArmatureOperator(bpy.types.Operator):
             ("leg.l", "thigh.l", joints.l_foot, l_knee_loc, l_foot_loc),  # L foot to elbow
             ("leg.r", "thigh.r", joints.r_foot, r_knee_loc, r_foot_loc),  # R foot to elbo
 
-            ("foot.l", "leg.l", joints.l_foot, l_foot_loc, l_foot_loc + Vector((0, -0.1, 0))),
-            ("foot.r", "leg.r", joints.r_foot, r_foot_loc, r_foot_loc + Vector((0, -0.1, 0))),
+            ("foot.l", "leg.l", joints.l_foot, l_foot_loc, l_foot_loc + Vector((0, -0.2, 0))),
+            ("foot.r", "leg.r", joints.r_foot, r_foot_loc, r_foot_loc + Vector((0, -0.2, 0))),
         ]
 
         bones = {}
@@ -160,7 +160,7 @@ class BuildArmatureOperator(bpy.types.Operator):
                 for constraint in pose_bone.constraints:
                     pose_bone.constraints.remove(constraint)
 
-                if name in ["root", "head"]:
+                if name in ["root", "head", "foot.l", "foot.r"]:
                     # Location and rotation (no scale because it gets weird)
                     constraint_loc = pose_bone.constraints.new("COPY_LOCATION")
                     constraint_loc.name = "Tracker Binding Location"
@@ -174,8 +174,8 @@ class BuildArmatureOperator(bpy.types.Operator):
                     constraint = pose_bone.constraints.new("IK")
                     constraint.name = "Tracker Binding Child"
                     constraint.target = parent_obj
-                    constraint.chain_count = 2
-                    constraint.use_rotation = "hand" not in name  # Hands rely on damped track
+                    constraint.chain_count = 3 if "foot" in name else 2
+                    constraint.use_rotation = "hand" not in name and "foot" not in name  # Hands and feet rely on damped track
 
                 if name in damped_track_bones:
                     constraint = pose_bone.constraints.new("DAMPED_TRACK")
