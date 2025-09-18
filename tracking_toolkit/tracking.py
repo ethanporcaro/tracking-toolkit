@@ -121,8 +121,8 @@ def _openvr_poll_thread_func(ovr_context: OVRContext):
         with buffer_lock:
             data_buffer.append(pose_chunk)
 
-        _get_input(ovr_context)
-        _handle_input(ovr_context)
+        #_get_input(ovr_context)
+        #_handle_input(ovr_context)
 
 
 def _clear_buffer():
