@@ -20,7 +20,11 @@ class BuildArmatureOperator(bpy.types.Operator):
             prev_select = context.object
 
             prev_mode = context.object.mode
-            bpy.ops.object.mode_set(mode="OBJECT")
+            try:
+                bpy.ops.object.mode_set(mode="OBJECT")
+            except RuntimeError:
+                # Maybe a linked library or something
+                pass
         else:
             prev_mode = "OBJECT"
 
@@ -57,9 +61,11 @@ class BuildArmatureOperator(bpy.types.Operator):
         # Offset floor
         foot_height = 0
 
-        head_height = get_loc(joints.head).z - float_height
-
         hips_height = get_loc(joints.hips).z - float_height
+        head_height = (get_loc(joints.head).z - float_height
+                       if joints.head
+                       else hips_height * 1.8)  # Default height (assume the tracker is higher up on waist)
+
 
         chest_height = (get_loc(joints.chest).z - float_height
                         if joints.chest
@@ -175,7 +181,7 @@ class BuildArmatureOperator(bpy.types.Operator):
                     constraint.name = "Tracker Binding Child"
                     constraint.target = parent_obj
                     constraint.chain_count = 3 if "foot" in name else 2
-                    constraint.use_rotation = "hand" not in name and "foot" not in name  # Hands and feet rely on damped track
+                    constraint.use_rotation = True
 
                 if name in damped_track_bones:
                     constraint = pose_bone.constraints.new("DAMPED_TRACK")
@@ -186,7 +192,12 @@ class BuildArmatureOperator(bpy.types.Operator):
         if prev_select:
             context.view_layer.objects.active = prev_select
             prev_select.select_set(True)
-        bpy.ops.object.mode_set(mode=prev_mode)
+
+        try:
+            bpy.ops.object.mode_set(mode=prev_mode)
+        except RuntimeError:
+            # Maybe a linked library or something
+            pass
 
         return {"FINISHED"}
 
