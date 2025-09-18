@@ -121,8 +121,8 @@ def _openvr_poll_thread_func(ovr_context: OVRContext):
         with buffer_lock:
             data_buffer.append(pose_chunk)
 
-        _get_input(ovr_context)
-        _handle_input(ovr_context)
+        #_get_input(ovr_context)
+        #_handle_input(ovr_context)
 
 
 def _clear_buffer():
@@ -178,6 +178,7 @@ def _insert_action(ovr_context: OVRContext):
     print(f"OpenVR Processing {num_samples} recorded samples")
 
     if num_samples == 0:
+        print(f"OpenVR Found no samples to process")
         return
 
     # Frame and conversion math
@@ -185,20 +186,11 @@ def _insert_action(ovr_context: OVRContext):
     framerate = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
     start_frame = ovr_context.record_start_frame
 
-    # Clear previous frames, since we record in sub-frames and some may linger from last run
-    for tracker in ovr_context.trackers:
-        tracker_obj = bpy.data.objects.get(tracker.name)
-        if tracker_obj.animation_data is None:
-            continue
+    # Create object to store processed animation data
+    animation_data = {}
 
-        action = tracker_obj.animation_data.action
-        if not action:
-            continue
-
-        for curve in action.fcurves:
-            action.fcurves.remove(curve)
-
-    # Add new frames
+    # Process samples into a large buffer, so we can efficiently apply it later
+    print("OpenVR Converting samples...")
     for sample in pose_data:
         for time, tracker, pose in sample:
             # Get object for tracker
@@ -210,7 +202,18 @@ def _insert_action(ovr_context: OVRContext):
             if tracker_obj.animation_data is None:
                 tracker_obj.animation_data_create()
 
-            # Add frames (using subframe)
+            # Initialize data structure for this object if it's the first time we see it.
+            if tracker.name not in animation_data:
+                print(tracker.name)
+                animation_data[tracker.name] = {
+                    "obj": tracker_obj,
+                    "frames": [],
+                    "locs": [],
+                    "rots": [],
+                    "scales": []
+                }
+
+            # Calculate frame number
             time_delta = time - take_start_time
             frame = start_frame + time_delta.total_seconds() * framerate
 
@@ -218,6 +221,70 @@ def _insert_action(ovr_context: OVRContext):
             tracker_obj.keyframe_insert("location", frame=frame)
             tracker_obj.keyframe_insert("rotation_quaternion", frame=frame)
             tracker_obj.keyframe_insert("scale", frame=frame)
+
+            # Decompose the matrix and append data
+            loc, rot, scale = pose.decompose()
+
+            data = animation_data[tracker.name]
+            data["frames"].append(frame)
+            data["locs"].extend(loc)
+            data["rots"].extend(rot)
+            data["scales"].extend(scale)
+
+    # Now insert or replace the data
+    print("OpenVR Inserting data...")
+    for tracker_name, data in animation_data.items():
+        print(">", tracker_name)
+
+        tracker_obj = data["obj"]
+        num_keys = len(data["frames"])
+
+        # Create animation data and action
+        if not tracker_obj.animation_data:
+            tracker_obj.animation_data_create()
+
+        action = tracker_obj.animation_data.action
+        if not action:
+            action = bpy.data.actions.new(name=f"{tracker_obj.name}_Action")
+            tracker_obj.animation_data.action = action
+
+        # Map the F-Curve data_path and array_index to our collected data.
+        fcurve_props = [
+            ("location", 3, data["locs"]),
+            ("rotation_quaternion", 4, data["rots"]),
+            ("scale", 3, data["scales"])
+        ]
+
+        for data_path, num_components, values in fcurve_props:
+            for i in range(num_components):
+                # Get or create the F-Curve
+                fcurve = action.fcurves.find(data_path, index=i)
+                if fcurve:
+                    action.fcurves.remove(fcurve)
+                fcurve = action.fcurves.new(data_path, index=i)
+
+                # Fill with points
+                fcurve.keyframe_points.add(num_keys)
+
+                # Create the flattened list for foreach_set.
+                # The format is [frame1, value1, frame2, value2, ...]
+
+                # Initialize
+                key_coords = [0.0] * (num_keys * 2)
+
+                # We slice the values list to get the data for the current component (axis)
+                component_values = values[i::num_components]
+
+                key_coords[0::2] = data["frames"]
+                key_coords[1::2] = component_values
+
+                # Set all keyframe coordinates at once
+                fcurve.keyframe_points.foreach_set("co", key_coords)
+
+                # Update the fcurve to apply changes
+                fcurve.update()
+
+    print("Done")
 
 
 def start_recording():
@@ -266,6 +333,7 @@ def stop_preview():
 
 
 def load_trackers(ovr_context: OVRContext):
+    print("OpenVR Loading Trackers")
     system = openvr.VRSystem()
 
     ovr_context.trackers.clear()
@@ -275,18 +343,10 @@ def load_trackers(ovr_context: OVRContext):
             continue
 
         tracker_serial = system.getStringTrackedDeviceProperty(i, openvr.Prop_SerialNumber_String)
-        matches = [tracker for tracker in ovr_context.trackers if tracker.serial == tracker_serial]
-        assert len(matches) < 2, "No two trackers should have the same serial number!"
-
-        # Existing tracker
-        if len(matches) == 1:
-            tracker = matches[0]
-        else:
-            tracker = ovr_context.trackers.add()
-            tracker.name = tracker_serial
-            tracker.prev_name = tracker_serial
-            tracker.serial = tracker_serial
-            tracker.type = str(system.getTrackedDeviceClass(i))
-            tracker.index = i
-
+        tracker = ovr_context.trackers.add()
+        tracker.name = tracker_serial
+        tracker.prev_name = tracker_serial
+        tracker.serial = tracker_serial
+        tracker.type = str(system.getTrackedDeviceClass(i))
+        tracker.index = i
         tracker.connected = bool(system.isTrackedDeviceConnected(i))  # Just in case, do it for both

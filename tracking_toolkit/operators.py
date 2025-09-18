@@ -20,7 +20,11 @@ class BuildArmatureOperator(bpy.types.Operator):
             prev_select = context.object
 
             prev_mode = context.object.mode
-            bpy.ops.object.mode_set(mode="OBJECT")
+            try:
+                bpy.ops.object.mode_set(mode="OBJECT")
+            except RuntimeError:
+                # Maybe a linked library or something
+                pass
         else:
             prev_mode = "OBJECT"
 
@@ -57,9 +61,11 @@ class BuildArmatureOperator(bpy.types.Operator):
         # Offset floor
         foot_height = 0
 
-        head_height = get_loc(joints.head).z - float_height
-
         hips_height = get_loc(joints.hips).z - float_height
+        head_height = (get_loc(joints.head).z - float_height
+                       if joints.head
+                       else hips_height * 1.8)  # Default height (assume the tracker is higher up on waist)
+
 
         chest_height = (get_loc(joints.chest).z - float_height
                         if joints.chest
@@ -119,8 +125,8 @@ class BuildArmatureOperator(bpy.types.Operator):
             ("leg.l", "thigh.l", joints.l_foot, l_knee_loc, l_foot_loc),  # L foot to elbow
             ("leg.r", "thigh.r", joints.r_foot, r_knee_loc, r_foot_loc),  # R foot to elbo
 
-            ("foot.l", "leg.l", joints.l_foot, l_foot_loc, l_foot_loc + Vector((0, -0.1, 0))),
-            ("foot.r", "leg.r", joints.r_foot, r_foot_loc, r_foot_loc + Vector((0, -0.1, 0))),
+            ("foot.l", "leg.l", joints.l_foot, l_foot_loc, l_foot_loc + Vector((0, -0.2, 0))),
+            ("foot.r", "leg.r", joints.r_foot, r_foot_loc, r_foot_loc + Vector((0, -0.2, 0))),
         ]
 
         bones = {}
@@ -160,7 +166,7 @@ class BuildArmatureOperator(bpy.types.Operator):
                 for constraint in pose_bone.constraints:
                     pose_bone.constraints.remove(constraint)
 
-                if name in ["root", "head"]:
+                if name in ["root", "head", "foot.l", "foot.r"]:
                     # Location and rotation (no scale because it gets weird)
                     constraint_loc = pose_bone.constraints.new("COPY_LOCATION")
                     constraint_loc.name = "Tracker Binding Location"
@@ -174,8 +180,8 @@ class BuildArmatureOperator(bpy.types.Operator):
                     constraint = pose_bone.constraints.new("IK")
                     constraint.name = "Tracker Binding Child"
                     constraint.target = parent_obj
-                    constraint.chain_count = 2
-                    constraint.use_rotation = "hand" not in name  # Hands rely on damped track
+                    constraint.chain_count = 3 if "foot" in name else 2
+                    constraint.use_rotation = True
 
                 if name in damped_track_bones:
                     constraint = pose_bone.constraints.new("DAMPED_TRACK")
@@ -186,7 +192,12 @@ class BuildArmatureOperator(bpy.types.Operator):
         if prev_select:
             context.view_layer.objects.active = prev_select
             prev_select.select_set(True)
-        bpy.ops.object.mode_set(mode=prev_mode)
+
+        try:
+            bpy.ops.object.mode_set(mode=prev_mode)
+        except RuntimeError:
+            # Maybe a linked library or something
+            pass
 
         return {"FINISHED"}
 
@@ -349,11 +360,13 @@ class CreateRefsOperator(bpy.types.Operator):
 
         # Create root
         root_empty = bpy.data.objects.get("OVR Root")
-        if not root_empty:
-            bpy.ops.object.empty_add(type="CUBE", location=(0, 0, 0))
-            root_empty = bpy.context.object
-            root_empty.name = "OVR Root"
-            root_empty.empty_display_size = 0.1
+        if root_empty:
+            bpy.data.objects.remove(root_empty)
+
+        bpy.ops.object.empty_add(type="CUBE", location=(0, 0, 0))
+        root_empty = bpy.context.object
+        root_empty.name = "OVR Root"
+        root_empty.empty_display_size = 0.1
 
         # Import models
 
@@ -406,6 +419,8 @@ class CreateRefsOperator(bpy.types.Operator):
             # Create new tracker empty if it doesn't exist
             tracker_name = tracker.name
 
+            print(">", tracker_name)
+
             # Chose correct model
             if tracker.type == str(openvr.TrackedDeviceClass_Controller):
                 model = controller_model
@@ -414,35 +429,41 @@ class CreateRefsOperator(bpy.types.Operator):
             else:
                 model = tracker_model
 
+            # Delete existing target
             tracker_target = bpy.data.objects.get(tracker_name)
-            if not tracker_target:
-                # Select render model and duplicate it
-                select_model(model)
+            if tracker_target:
+                bpy.data.objects.remove(tracker_target)
 
-                bpy.ops.object.duplicate()
+            # Create target
+            select_model(model)
+            bpy.ops.object.duplicate()
 
-                tracker_target = bpy.context.object
-                tracker_target.name = tracker_name
+            tracker_target = bpy.context.object
+            tracker_target.name = tracker_name
 
-                tracker_target.show_name = True
-                tracker_target.hide_render = True
+            tracker_target.show_name = True
+            tracker_target.hide_render = True
 
             # Create another empty as a joint offset. This is useful when you use a "Copy Transforms" constraint but
             # the physical tracker doesn't align perfectly with a character's joint
             # Create one if it doesn't exist
             joint_name = f"{tracker_name} Joint"
 
+            # Delete existing joint
             tracker_joint = bpy.data.objects.get(joint_name)
-            if not tracker_joint:
-                select_model(model)
-                bpy.ops.object.duplicate()
+            if tracker_joint:
+                bpy.data.objects.remove(tracker_joint)
 
-                tracker_joint = bpy.context.object
-                tracker_joint.name = joint_name
+            # Create joint
+            select_model(model)
+            bpy.ops.object.duplicate()
 
-                tracker_joint.display_type = "WIRE"
-                tracker_joint.show_in_front = True
-                tracker_target.hide_render = True
+            tracker_joint = bpy.context.object
+            tracker_joint.name = joint_name
+
+            tracker_joint.display_type = "WIRE"
+            tracker_joint.show_in_front = True
+            tracker_target.hide_render = True
 
             # Assign objects
             tracker.target.object = tracker_target
@@ -457,21 +478,22 @@ class CreateRefsOperator(bpy.types.Operator):
             tracker_joint.rotation_mode = "QUATERNION"
 
         # Clean up
-        select_model(tracker_model)
-        bpy.ops.object.delete()
-        select_model(controller_model)
-        bpy.ops.object.delete()
-        select_model(hmd_model)
-        bpy.ops.object.delete()
+        bpy.data.objects.remove(tracker_model)
+        bpy.data.objects.remove(controller_model)
+        bpy.data.objects.remove(hmd_model)
 
         # Restore previous selection
-        if prev_obj:
-            prev_obj.select_set(True)
-            bpy.context.view_layer.objects.active = prev_obj
+        try:
+            if prev_obj:
+                prev_obj.select_set(True)
+                bpy.context.view_layer.objects.active = prev_obj
 
-            # I can't stand warnings, okay?
-            # noinspection PyUnboundLocalVariable
-            if bpy.context.object.mode != prev_mode:  # Safe against linked library immutability
-                bpy.ops.object.mode_set(mode=prev_mode)
+                # I can't stand warnings, okay?
+                # noinspection PyUnboundLocalVariable
+                if bpy.context.object.mode != prev_mode:  # Safe against linked library immutability
+                    bpy.ops.object.mode_set(mode=prev_mode)
+        except ReferenceError:
+            pass
 
+        print("Done")
         return {"FINISHED"}
