@@ -1,6 +1,5 @@
 import bpy
 import openvr
-from bpy.types import LockedTrackConstraint
 from mathutils import Vector
 
 from .properties import Preferences, OVRTransform, OVRContext
@@ -56,6 +55,12 @@ class BuildArmatureOperator(bpy.types.Operator):
 
         joints = ovr_context.armature_joints
 
+        if not joints.hips:
+            self.report(
+                {"ERROR"},
+                "Hips are required to build an armature."
+            )
+            return {"CANCELLED"}
 
         if joints.l_foot and joints.r_foot:
             foot_height = (get_loc(joints.l_foot).z + get_loc(joints.r_foot).z) / 2  # Average of feet
@@ -71,7 +76,6 @@ class BuildArmatureOperator(bpy.types.Operator):
         head_height = (get_loc(joints.head).z - float_height
                        if joints.head
                        else hips_height * 1.8)  # Default height (assume the tracker is higher up on waist)
-
 
         chest_height = (get_loc(joints.chest).z - float_height
                         if joints.chest
