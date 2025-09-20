@@ -97,9 +97,9 @@ class OVRInput(bpy.types.PropertyGroup):
     b_button: bpy.props.BoolProperty(name="B pressed", default=False)
 
 
-def tracker_joint_filter(self: bpy.types.bpy_struct, obj: bpy.types.ID) -> bool:
+def tracker_joint_filter(_, obj: bpy.types.ID) -> bool:
     ovr_context = bpy.context.scene.OVRContext
-    return True # any(obj == tracker.joint.object for tracker in ovr_context.trackers)
+    return any(obj.name == f"{tracker.name} Joint" for tracker in ovr_context.trackers)
 
 
 class OVRArmatureJoints(bpy.types.PropertyGroup):
