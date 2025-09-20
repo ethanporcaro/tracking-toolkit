@@ -1,9 +1,9 @@
 schema_version = "1.0.0"
 
 id = "tracking_toolkit"
-version = "1.2.0"
+version = "2.0.0"
 name = "Tracking Toolkit"
-tagline = "Use OpenVR trackers and devices directly in Blender"
+tagline = "Use OpenXR trackers and devices directly in Blender"
 maintainer = "Ethan Porcaro <ethan@varrett.com>"
 tags = ["Animation", "Tracking"]
 
@@ -16,7 +16,10 @@ license = [
 ]
 
 wheels = [
-    "./wheels/openvr-2.5.102-py3-none-any.whl"
+    "./wheels/pyopenxr-1.1.5101-py3-none-any.whl",
+    "./wheels/glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.p39.p310.p311.p312.p313-none-win_amd64.whl",
+    "./wheels/numpy-2.3.3-cp311-cp311-win_amd64.whl",
+    "./wheelspyopengl-3.1.10-py3-none-any.whl"
 ]
 
 [build]

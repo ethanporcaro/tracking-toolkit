@@ -18,15 +18,15 @@ from .tracking_toolkit.operators import (
     BuildArmatureOperator
 )
 from .tracking_toolkit.properties import (
-    OVRContext,
-    OVRArmatureJoints,
-    OVRTracker,
-    OVRTarget,
-    OVRTransform,
-    OVRInput,
+    VRContext,
+    VRArmatureJoints,
+    VRTracker,
+    VRTarget,
+    VRTransform,
+    VRInput,
     Preferences
 )
-from .tracking_toolkit.tracking import stop_preview
+from .tracking_toolkit.vr import stop_preview, stop_vr
 from .tracking_toolkit.ui import PANEL_UL_TrackerList, RecorderPanel, ArmaturePanel
 
 
@@ -35,13 +35,13 @@ def scene_update_callback(scene: bpy.types.Scene, depsgraph):
     if not selected:
         return
 
-    ovr_context = scene.OVRContext
+    vr_context = scene.VRContext
 
     active = selected[-1].name
-    for tracker in ovr_context.trackers:
+    for tracker in vr_context.trackers:
         if tracker.target.object and (tracker.target.object.name == active or tracker.joint.object.name == active):
-            if ovr_context.selected_tracker != tracker.index:
-                ovr_context.selected_tracker = tracker.index
+            if vr_context.selected_tracker != tracker.index:
+                vr_context.selected_tracker = tracker.index
 
 
 def register():
@@ -49,12 +49,12 @@ def register():
 
     # Props
     bpy.utils.register_class(Preferences)
-    bpy.utils.register_class(OVRTransform)
-    bpy.utils.register_class(OVRTarget)
-    bpy.utils.register_class(OVRTracker)
-    bpy.utils.register_class(OVRInput)
-    bpy.utils.register_class(OVRArmatureJoints)
-    bpy.utils.register_class(OVRContext)
+    bpy.utils.register_class(VRTransform)
+    bpy.utils.register_class(VRTarget)
+    bpy.utils.register_class(VRTracker)
+    bpy.utils.register_class(VRInput)
+    bpy.utils.register_class(VRArmatureJoints)
+    bpy.utils.register_class(VRContext)
 
     # Operators
     bpy.utils.register_class(ToggleCalibrationOperator)
@@ -64,7 +64,7 @@ def register():
     bpy.utils.register_class(BuildArmatureOperator)
 
     # Contexts
-    bpy.types.Scene.OVRContext = bpy.props.PointerProperty(type=OVRContext)
+    bpy.types.Scene.VRContext = bpy.props.PointerProperty(type=VRContext)
 
     # UI
     bpy.utils.register_class(PANEL_UL_TrackerList)
@@ -79,6 +79,7 @@ def register():
 def unregister():
     print("Unloading Tracking Toolkit...")
 
+    stop_vr()
     stop_preview()
 
     # UI
@@ -87,7 +88,7 @@ def unregister():
     bpy.utils.unregister_class(ArmaturePanel)
 
     # Contexts
-    del bpy.types.Scene.OVRContext
+    del bpy.types.Scene.VRContext
 
     # Classes
     bpy.utils.unregister_class(BuildArmatureOperator)
@@ -97,12 +98,12 @@ def unregister():
     bpy.utils.unregister_class(ToggleCalibrationOperator)
 
     # Props
-    bpy.utils.unregister_class(OVRContext)
-    bpy.utils.unregister_class(OVRArmatureJoints)
-    bpy.utils.unregister_class(OVRInput)
-    bpy.utils.unregister_class(OVRTracker)
-    bpy.utils.unregister_class(OVRTarget)
-    bpy.utils.unregister_class(OVRTransform)
+    bpy.utils.unregister_class(VRContext)
+    bpy.utils.unregister_class(VRArmatureJoints)
+    bpy.utils.unregister_class(VRInput)
+    bpy.utils.unregister_class(VRTracker)
+    bpy.utils.unregister_class(VRTarget)
+    bpy.utils.unregister_class(VRTransform)
     bpy.utils.unregister_class(Preferences)
 
     # Handlers

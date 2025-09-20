@@ -1,19 +1,26 @@
 import bpy
-import openvr
-from bpy.types import LockedTrackConstraint
 from mathutils import Vector
 
-from .properties import Preferences, OVRTransform, OVRContext
-from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview, init_handles
+from .properties import Preferences, VRTransform, VRContext
+from .vr import (
+    init_vr,
+    stop_vr,
+    request_exit,
+    load_trackers,
+    start_recording,
+    stop_recording,
+    start_preview,
+    stop_preview
+)
 from .. import __package__ as base_package
 
 
 class BuildArmatureOperator(bpy.types.Operator):
     bl_idname = "id.build_armature"
-    bl_label = "Build OpenVR armature"
+    bl_label = "Build VR Armature"
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
+        vr_context: VRContext = context.scene.VRContext
 
         # Store selection and mode state
         prev_select = None
@@ -30,17 +37,17 @@ class BuildArmatureOperator(bpy.types.Operator):
             prev_mode = "OBJECT"
 
         # Create armature
-        armature_obj = context.scene.objects.get("OVR Armature")
+        armature_obj = context.scene.objects.get("VR Armature")
         if not armature_obj:
             bpy.ops.object.armature_add(enter_editmode=True, align="WORLD", location=(0, 0, 0))
             armature_obj = context.object
-            armature_obj.name = "OVR Armature"
+            armature_obj.name = "VR Armature"
 
         context.view_layer.objects.active = armature_obj
         bpy.ops.object.mode_set(mode="EDIT")
 
         armature_data = armature_obj.data
-        armature_data.name = "OVR Armature Data"
+        armature_data.name = "VR Armature Data"
         armature_data.show_names = True
         armature_data.display_type = "STICK"
 
@@ -54,8 +61,7 @@ class BuildArmatureOperator(bpy.types.Operator):
                 return obj_prop.matrix_world.translation.copy()  # Use a copy to prevent changing it
             return None
 
-        joints = ovr_context.armature_joints
-
+        joints = vr_context.armature_joints
 
         if joints.l_foot and joints.r_foot:
             foot_height = (get_loc(joints.l_foot).z + get_loc(joints.r_foot).z) / 2  # Average of feet
@@ -71,7 +77,6 @@ class BuildArmatureOperator(bpy.types.Operator):
         head_height = (get_loc(joints.head).z - float_height
                        if joints.head
                        else hips_height * 1.8)  # Default height (assume the tracker is higher up on waist)
-
 
         chest_height = (get_loc(joints.chest).z - float_height
                         if joints.chest
@@ -221,49 +226,49 @@ class BuildArmatureOperator(bpy.types.Operator):
 
 class ToggleRecordOperator(bpy.types.Operator):
     bl_idname = "id.toggle_recording"
-    bl_label = "Toggle OpenVR recording"
+    bl_label = "Toggle VR recording"
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
+        vr_context: VRContext = context.scene.VRContext
 
         # Double check state, though this should have been checked before
-        if not ovr_context.enabled:
+        if not vr_context.enabled:
             return {"FINISHED"}
 
-        if ovr_context.calibration_stage != 0:
+        if vr_context.calibration_stage != 0:
             return {"FINISHED"}
 
-        ovr_context.recording = not ovr_context.recording
-        if ovr_context.recording:
-            ovr_context.record_start_frame = context.scene.frame_current
-            start_preview(ovr_context)
+        vr_context.recording = not vr_context.recording
+        if vr_context.recording:
+            vr_context.record_start_frame = context.scene.frame_current
+            start_preview()
             start_recording()
         else:
-            stop_recording(ovr_context)
+            stop_recording(vr_context)
 
         return {"FINISHED"}
 
 
 class ToggleCalibrationOperator(bpy.types.Operator):
     bl_idname = "id.toggle_calibration"
-    bl_label = "Toggle OpenVR calibration"
+    bl_label = "Toggle VR calibration"
 
     @staticmethod
-    def obj_t_to_prop(obj: bpy.types.Object, prop: OVRTransform):
+    def obj_t_to_prop(obj: bpy.types.Object, prop: VRTransform):
         prop.location = obj.location
         prop.rotation = obj.rotation_euler
-        # Scale shouldn't be applicable to calibration, and OpenVR will sometimes provide non-1 scale factors.
+        # Scale shouldn't be applicable to calibration, and VR will sometimes provide non-1 scale factors.
         # Just keep it as is, since some armatures depend on scale and it causes issues.
 
     @staticmethod
-    def prop_t_to_obj(prop: OVRTransform, obj: bpy.types.Object):
+    def prop_t_to_obj(prop: VRTransform, obj: bpy.types.Object):
         obj.location = prop.location
         obj.rotation_euler = prop.rotation
         # Same as above, skip scale.
 
-    def restore_calibration_transforms(self, ovr_context):
+    def restore_calibration_transforms(self, vr_context):
         # Restore transform of trackers
-        for tracker in ovr_context.trackers:
+        for tracker in vr_context.trackers:
             if not tracker.connected:
                 continue
 
@@ -278,9 +283,9 @@ class ToggleCalibrationOperator(bpy.types.Operator):
             # Restore calibration transforms
             self.prop_t_to_obj(tracker.target.calibration_transform, tracker_obj)
 
-    def save_calibration_transforms(self, ovr_context):
+    def save_calibration_transforms(self, vr_context):
         # Save transform of trackers
-        for tracker in ovr_context.trackers:
+        for tracker in vr_context.trackers:
             if not tracker.connected:
                 continue
 
@@ -312,23 +317,23 @@ class ToggleCalibrationOperator(bpy.types.Operator):
         return {"FINISHED"}
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
+        vr_context: VRContext = context.scene.VRContext
 
         # Next stage
-        ovr_context.calibration_stage += 1
-        if ovr_context.calibration_stage > 2:
-            ovr_context.calibration_stage = 0
+        vr_context.calibration_stage += 1
+        if vr_context.calibration_stage > 2:
+            vr_context.calibration_stage = 0
 
         # Cycle through stages
-        if ovr_context.calibration_stage == 0:  # Complete calibration
-            self.save_calibration_transforms(ovr_context)
+        if vr_context.calibration_stage == 0:  # Complete calibration
+            self.save_calibration_transforms(vr_context)
             self.disable_rest()
-            start_preview(ovr_context)
-        elif ovr_context.calibration_stage == 1:  # Tracker Alignment
+            start_preview()
+        elif vr_context.calibration_stage == 1:  # Tracker Alignment
             stop_preview()
-            self.restore_calibration_transforms(ovr_context)
+            self.restore_calibration_transforms(vr_context)
             self.enable_rest()
-        elif ovr_context.calibration_stage == 2:  # Tracker Offsetting
+        elif vr_context.calibration_stage == 2:  # Tracker Offsetting
             stop_preview()
             self.disable_rest()
 
@@ -337,20 +342,30 @@ class ToggleCalibrationOperator(bpy.types.Operator):
 
 class ToggleActiveOperator(bpy.types.Operator):
     bl_idname = "id.toggle_active"
-    bl_label = "Toggle OpenVR's tracking state"
+    bl_label = "Toggle VR's tracking state"
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-        if ovr_context.enabled:
-            stop_preview()
-            openvr.shutdown()
+        vr_context: VRContext = context.scene.VRContext
+        if vr_context.enabled:
+            request_exit()
+            stop_preview()  # Must come after since it keeps the event loop going
         else:
-            openvr.init(openvr.VRApplication_Scene)
-            init_handles()
-            load_trackers(ovr_context)
-            start_preview(ovr_context)
+            try:
+                init_vr()
+                load_trackers(vr_context)
+                start_preview()
+            except Exception as e:
+                print(f"Error starting VR: {e}")
+                self.report(
+                    {"ERROR"},
+                    "VR could not be started. Trying again sometimes works."
+                )
+                stop_vr()
+                stop_preview()
+                vr_context.enabled = False
+                return {"FINISHED"}
 
-        ovr_context.enabled = not ovr_context.enabled
+        vr_context.enabled = not vr_context.enabled
         return {"FINISHED"}
 
 
@@ -360,11 +375,11 @@ class CreateRefsOperator(bpy.types.Operator):
     bl_options = {"UNDO"}
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-        if not ovr_context.enabled:
+        vr_context: VRContext = context.scene.VRContext
+        if not vr_context.enabled:
             self.report(
                 {"ERROR"},
-                "OpenVR has not been connected yet"
+                "VR has not been connected yet"
             )
             return {"FINISHED"}
 
@@ -376,13 +391,13 @@ class CreateRefsOperator(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode="OBJECT")
 
         # Create root
-        root_empty = bpy.data.objects.get("OVR Root")
+        root_empty = bpy.data.objects.get("VR Root")
         if root_empty:
             bpy.data.objects.remove(root_empty)
 
         bpy.ops.object.empty_add(type="CUBE", location=(0, 0, 0))
         root_empty = bpy.context.object
-        root_empty.name = "OVR Root"
+        root_empty.name = "VR Root"
         root_empty.empty_display_size = 0.1
 
         # Import models
@@ -414,7 +429,7 @@ class CreateRefsOperator(bpy.types.Operator):
             )
             return {"FINISHED"}
 
-        load_trackers(ovr_context)
+        load_trackers(vr_context)
 
         # Default reference transformations
         tracker_model.location = (0, 0, 0)
@@ -432,16 +447,16 @@ class CreateRefsOperator(bpy.types.Operator):
             target_model.select_set(True)
             bpy.context.view_layer.objects.active = target_model
 
-        for tracker in ovr_context.trackers:
+        for tracker in vr_context.trackers:
             # Create new tracker empty if it doesn't exist
             tracker_name = tracker.name
 
             print(">", tracker_name)
 
             # Chose correct model
-            if tracker.type == str(openvr.TrackedDeviceClass_Controller):
+            if tracker.type == "controller":
                 model = controller_model
-            elif tracker.type == str(openvr.TrackedDeviceClass_HMD):
+            elif tracker.type == "hmd":
                 model = hmd_model
             else:
                 model = tracker_model

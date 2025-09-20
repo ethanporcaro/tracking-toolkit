@@ -3,16 +3,16 @@ import bpy
 from .. import __package__ as base_package
 
 
-class OVRTransform(bpy.types.PropertyGroup):
+class VRTransform(bpy.types.PropertyGroup):
     location: bpy.props.FloatVectorProperty(name="Location", default=(0, 0, 0))
     rotation: bpy.props.FloatVectorProperty(name="Rotation", default=(0, 0, 0))
     scale: bpy.props.FloatVectorProperty(name="Scale", default=(1, 1, 1))
 
 
-class OVRTarget(bpy.types.PropertyGroup):
+class VRTarget(bpy.types.PropertyGroup):
     object: bpy.props.PointerProperty(name="Target object", type=bpy.types.Object)
-    transform: bpy.props.PointerProperty(type=OVRTransform)
-    calibration_transform: bpy.props.PointerProperty(type=OVRTransform)
+    transform: bpy.props.PointerProperty(type=VRTransform)
+    calibration_transform: bpy.props.PointerProperty(type=VRTransform)
 
 
 def tracker_name_change_callback(self: bpy.types.bpy_struct, context):
@@ -44,12 +44,12 @@ def armature_filter(self: bpy.types.bpy_struct, obj: bpy.types.ID) -> bool:
 
 
 def armature_bone_list(self: bpy.types.bpy_struct, context, edit_text):
-    armature = self.armature or context.scene.OVRContext.armature
+    armature = self.armature or context.scene.VRContext.armature
     return [b.name for b in armature.data.bones]
 
 
 def tracker_binding_change_callback(self: bpy.types.bpy_struct, context):
-    armature: bpy.types.Object = self.armature or context.scene.OVRContext.armature
+    armature: bpy.types.Object = self.armature or context.scene.VRContext.armature
 
     bound_bone: bpy.types.PoseBone = armature.pose.bones.get(self.bone)
     prev_bone: bpy.types.PoseBone = armature.pose.bones.get(self.prev_bone)
@@ -69,8 +69,8 @@ def tracker_binding_change_callback(self: bpy.types.bpy_struct, context):
         self.prev_bone = bound_bone.name
 
 
-class OVRTracker(bpy.types.PropertyGroup):
-    index: bpy.props.IntProperty(name="OpenVR name")
+class VRTracker(bpy.types.PropertyGroup):
+    index: bpy.props.IntProperty(name="VR name")
     name: bpy.props.StringProperty(name="Tracker name", update=tracker_name_change_callback)
     prev_name: bpy.props.StringProperty(name="Tracker name before renaming")
     serial: bpy.props.StringProperty(name="Tracker serial string")
@@ -78,8 +78,8 @@ class OVRTracker(bpy.types.PropertyGroup):
 
     connected: bpy.props.BoolProperty(name="Is tracker connected")
 
-    target: bpy.props.PointerProperty(type=OVRTarget)
-    joint: bpy.props.PointerProperty(type=OVRTarget)  # Joint offset
+    target: bpy.props.PointerProperty(type=VRTarget)
+    joint: bpy.props.PointerProperty(type=VRTarget)  # Joint offset
 
     bone: bpy.props.StringProperty(name="Bound bone", search=armature_bone_list, update=tracker_binding_change_callback)
     prev_bone: bpy.props.StringProperty(name="Previously bound bone")
@@ -87,7 +87,7 @@ class OVRTracker(bpy.types.PropertyGroup):
     armature: bpy.props.PointerProperty(name="Override armature", type=bpy.types.Object, poll=armature_filter)
 
 
-class OVRInput(bpy.types.PropertyGroup):
+class VRInput(bpy.types.PropertyGroup):
     joystick_position: bpy.props.FloatVectorProperty(name="Joystick position", size=2, default=(0, 0))
 
     grip_strength: bpy.props.FloatProperty(name="Grip strength", default=0)
@@ -98,11 +98,11 @@ class OVRInput(bpy.types.PropertyGroup):
 
 
 def tracker_joint_filter(self: bpy.types.bpy_struct, obj: bpy.types.ID) -> bool:
-    ovr_context = bpy.context.scene.OVRContext
-    return True # any(obj == tracker.joint.object for tracker in ovr_context.trackers)
+    vr_context = bpy.context.scene.VRContext
+    return True  # any(obj == tracker.joint.object for tracker in vr_context.trackers)
 
 
-class OVRArmatureJoints(bpy.types.PropertyGroup):
+class VRArmatureJoints(bpy.types.PropertyGroup):
     head: bpy.props.PointerProperty(name="Head", type=bpy.types.Object, poll=tracker_joint_filter)
     chest: bpy.props.PointerProperty(name="Chest", type=bpy.types.Object, poll=tracker_joint_filter)
     hips: bpy.props.PointerProperty(name="Hips", type=bpy.types.Object, poll=tracker_joint_filter)
@@ -121,7 +121,7 @@ class OVRArmatureJoints(bpy.types.PropertyGroup):
 
 
 def selected_tracker_change_callback(self: bpy.types.bpy_struct, context):
-    selected_tracker: OVRTracker = self.trackers[self.selected_tracker]
+    selected_tracker: VRTracker = self.trackers[self.selected_tracker]
 
     obj = selected_tracker.joint.object
     if not obj:
@@ -132,24 +132,24 @@ def selected_tracker_change_callback(self: bpy.types.bpy_struct, context):
     context.view_layer.objects.active = obj
 
 
-class OVRContext(bpy.types.PropertyGroup):
-    enabled: bpy.props.BoolProperty(name="OpenVR active", default=False)
-    calibration_stage: bpy.props.IntProperty(name="Stage number of OpenVR Calibration", default=0)
-    recording: bpy.props.BoolProperty(name="OpenVR recording", default=False)
+class VRContext(bpy.types.PropertyGroup):
+    enabled: bpy.props.BoolProperty(name="VR active", default=False)
+    calibration_stage: bpy.props.IntProperty(name="Stage number of VR Calibration", default=0)
+    recording: bpy.props.BoolProperty(name="VR recording", default=False)
 
-    trackers: bpy.props.CollectionProperty(type=OVRTracker)
+    trackers: bpy.props.CollectionProperty(type=VRTracker)
     selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0, update=selected_tracker_change_callback)
 
-    offset: bpy.props.PointerProperty(type=OVRTransform, name="Tracker offset")
+    offset: bpy.props.PointerProperty(type=VRTransform, name="Tracker offset")
 
     record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)
 
     armature: bpy.props.PointerProperty(name="Default Armature", type=bpy.types.Object, poll=armature_filter)
 
-    l_input: bpy.props.PointerProperty(type=OVRInput, name="Left controller input state")
-    r_input: bpy.props.PointerProperty(type=OVRInput, name="Right controller input state")
+    l_input: bpy.props.PointerProperty(type=VRInput, name="Left controller input state")
+    r_input: bpy.props.PointerProperty(type=VRInput, name="Right controller input state")
 
-    armature_joints: bpy.props.PointerProperty(type=OVRArmatureJoints, name="Armature Joints")
+    armature_joints: bpy.props.PointerProperty(type=VRArmatureJoints, name="Armature Joints")
 
 
 class Preferences(bpy.types.AddonPreferences):

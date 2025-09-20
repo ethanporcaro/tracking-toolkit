@@ -18,7 +18,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
       - name: download wheels
-        run: pip wheel openvr -w ./wheels
+        run: pip wheel pyopenxr -w ./wheels
       - name: package
         run: |
           zip -r ${{ env.ZIP_NAME }} ./* -x "images/*" "index.json"
