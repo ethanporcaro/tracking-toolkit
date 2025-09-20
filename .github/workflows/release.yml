@@ -18,7 +18,9 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
       - name: download wheels
-        run: pip wheel pyopenxr -w ./wheels
+        run: |
+          pip download --platform win_amd64 --only-binary :all: --dest wheels --no-deps -r requirements.txt
+          pip download --platform manylinux_2_28_x86_64 --only-binary :all: --dest wheels --no-deps -r requirements.txt
       - name: package
         run: |
           zip -r ${{ env.ZIP_NAME }} ./* -x "images/*" "index.json"

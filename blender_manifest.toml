@@ -9,7 +9,7 @@ tags = ["Animation", "Tracking"]
 
 type = "add-on"
 blender_version_min = "4.2.0"
-platforms = ["windows-x64", "linux-x64"]  # Technically, Linux works. Mac is no longer supoprted by Valve
+platforms = ["windows-x64", "linux-x64"]  # I don't think there are any OpenXR runtimes for macos
 
 license = [
     "SPDX:GPL-3.0-or-later",
@@ -17,9 +17,9 @@ license = [
 
 wheels = [
     "./wheels/pyopenxr-1.1.5101-py3-none-any.whl",
+    "./wheels/pyopengl-3.1.10-py3-none-any.whl",
     "./wheels/glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.p39.p310.p311.p312.p313-none-win_amd64.whl",
-    "./wheels/numpy-2.3.3-cp311-cp311-win_amd64.whl",
-    "./wheelspyopengl-3.1.10-py3-none-any.whl"
+    "./wheels/glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.p39.p310.p311.p312.p313-none-manylinux_2_28_x86_64.whl"
 ]
 
 [build]

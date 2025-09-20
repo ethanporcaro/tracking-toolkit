@@ -5,8 +5,8 @@ To do so, click `(Blender Icon) > System > Reload Scripts`. I personally mapped 
 
 ## Release
 
-Before packaging or running from source, execute these commands to fetch dependencies:
+Before running from source, execute these commands to fetch dependencies:
 
-`pip wheel pyopenxr -w ./wheels`
+`pip download --only-binary :all: --dest ./wheels --no-deps -r requirements.txt`
 
 This is to comply with the [Python Wheels rules](https://docs.blender.org/manual/en/latest/advanced/extensions/python_wheels.html) for the [Blender Extensions](https://extensions.blender.org/) platform.
