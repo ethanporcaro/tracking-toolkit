@@ -66,6 +66,8 @@ def _getTimeFunc():
             xr.PFN_xrConvertWin32PerformanceCounterToTimeKHR,
         )
 
+        import ctypes.wintypes as wintypes
+
         def _time_from_perf_counter(performance_counter: ctypes.wintypes.LARGE_INTEGER) -> xr.Time:
             xr_time = xr.Time()
             result = pxrConvertWin32PerformanceCounterToTimeKHR(
@@ -112,6 +114,8 @@ def _getXRTime():
     """
 
     if platform.system() == "Windows":
+
+        import ctypes.wintypes as wintypes
         pc_time = ctypes.wintypes.LARGE_INTEGER()
         kernel32.QueryPerformanceCounter(ctypes.byref(pc_time))
         xr_time_now = _getTimeFunc()(pc_time)
@@ -149,8 +153,34 @@ def _get_controller_paths() -> ctypes.Array[xr.Path]:
 
 def _init_actions():
     """
-    Create action set and actions
+    Create reference space, action set, and actions
     """
+
+    global base_space
+    base_space = xr.create_reference_space(
+        session=session,
+        create_info=xr.ReferenceSpaceCreateInfo(
+            reference_space_type=xr.ReferenceSpaceType.STAGE,
+        )
+    )
+
+    global view_reference_space
+    view_reference_space = xr.create_reference_space(
+        session=session,
+        create_info=xr.ReferenceSpaceCreateInfo(
+            reference_space_type=xr.ReferenceSpaceType.VIEW,
+        )
+    )
+
+    global action_set
+    action_set = xr.create_action_set(
+        instance=instance,
+        create_info=xr.ActionSetCreateInfo(
+            action_set_name="default_action_set",
+            localized_action_set_name="Default Action Set",
+            priority=0,
+        ),
+    )
 
     global paths
     paths = []
@@ -235,29 +265,8 @@ def _init_actions():
     )
 
 
-def init_vr():
-    print("Initializing OpenXR...")
-
-    # Get supported extensions
-    supported_extensions = [ext.extension_name.decode() for ext in xr.enumerate_instance_extension_properties()]
-    print(f"Supported extensions: {supported_extensions}")
-
-    if xr.MND_HEADLESS_EXTENSION_NAME not in supported_extensions:
-        raise ValueError("Headless mode is not supported by your runtime. Exiting...")
-
-    extensions = [xr.MND_HEADLESS_EXTENSION_NAME]
-
-    if vive_tracker_interaction.EXTENSION_NAME in supported_extensions:
-        print("Using Vive tracker interaction extension")
-        extensions.append(vive_tracker_interaction.EXTENSION_NAME)
-
-        global use_vive
-        use_vive = True
-
-    if platform.system() == "Windows":
-        extensions.append(xr.KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME)
-    else:  # Linux
-        extensions.append(xr.KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME)
+def _init_vr_headless(extensions: list[str]):
+    print("Initializing OpenXR with headless mode...")
 
     global instance
     instance = xr.create_instance(xr.InstanceCreateInfo(
@@ -279,31 +288,63 @@ def init_vr():
         ),
     )
 
-    global base_space
-    base_space = xr.create_reference_space(
-        session=session,
-        create_info=xr.ReferenceSpaceCreateInfo(
-            reference_space_type=xr.ReferenceSpaceType.STAGE,
-        )
-    )
 
-    global view_reference_space
-    view_reference_space = xr.create_reference_space(
-        session=session,
-        create_info=xr.ReferenceSpaceCreateInfo(
-            reference_space_type=xr.ReferenceSpaceType.VIEW,
-        )
-    )
+def _init_vr_with_graphics(extensions: list[str]):
+    print("Initializing OpenXR with graphics mode...")
 
-    global action_set
-    action_set = xr.create_action_set(
-        instance=instance,
-        create_info=xr.ActionSetCreateInfo(
-            action_set_name="default_action_set",
-            localized_action_set_name="Default Action Set",
-            priority=0,
-        ),
-    )
+    # Use high level context manager
+    from xr.utils.gl import ContextObject
+    from xr.utils.gl.glfw_util import GLFWOffscreenContextProvider
+
+    with ContextObject(
+            context_provider=GLFWOffscreenContextProvider(),
+            instance_create_info=xr.InstanceCreateInfo(
+                enabled_extension_names=extensions,
+            ),
+    ) as context:
+        global instance, system, session, base_space, view_reference_space, action_set
+        instance = context.instance
+        system = context.system
+        session = context.session
+        base_space = context.space
+        view_reference_space = context.view_reference_space
+        action_set = context.default_action_set
+
+
+def init_vr():
+    print("Initializing OpenXR...")
+
+    # Get supported extensions
+    supported_extensions = [ext.extension_name.decode() for ext in xr.enumerate_instance_extension_properties()]
+    print(f"Supported extensions: {supported_extensions}")
+
+    extensions = []
+
+    if xr.MND_HEADLESS_EXTENSION_NAME in supported_extensions and False:
+        extensions.append(vive_tracker_interaction.EXTENSION_NAME)
+    elif xr.KHR_OPENGL_ENABLE_EXTENSION_NAME in supported_extensions:
+        extensions.append(xr.KHR_OPENGL_ENABLE_EXTENSION_NAME)
+    else:
+        raise ValueError("No supported graphics extension found. Your OpenXR runtime is incompatible.")
+
+    if vive_tracker_interaction.EXTENSION_NAME in supported_extensions:
+        print("Using Vive tracker interaction extension")
+        extensions.append(vive_tracker_interaction.EXTENSION_NAME)
+
+        global use_vive
+        use_vive = True
+
+    if platform.system() == "Windows":
+        extensions.append(xr.KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME)
+    else:  # Linux
+        extensions.append(xr.KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME)
+
+    if xr.MND_HEADLESS_EXTENSION_NAME in supported_extensions:
+        # Headless mode
+        _init_vr_headless(extensions)
+    else:
+        # Graphics mode
+        _init_vr_with_graphics(extensions)
 
     _init_actions()
 
@@ -444,7 +485,7 @@ def _poll_events():
                     xr.begin_session(
                         session,
                         xr.SessionBeginInfo(
-                            primary_view_configuration_type=xr.ViewConfigurationType.PRIMARY_MONO,
+                            primary_view_configuration_type=xr.ViewConfigurationType.PRIMARY_STEREO,
                         ),
                     )
 
