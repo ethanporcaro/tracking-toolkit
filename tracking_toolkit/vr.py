@@ -30,6 +30,7 @@ paths: list[xr.Path] = []
 action_set: xr.ActionSet
 action_spaces = []
 base_space: xr.Space
+view_reference_space: xr.Space
 
 # Role strings from
 # https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#XR_HTCX_vive_tracker_interaction
@@ -270,6 +271,14 @@ def init_vr():
         )
     )
 
+    global view_reference_space
+    view_reference_space = xr.create_reference_space(
+        session=session,
+        create_info=xr.ReferenceSpaceCreateInfo(
+            reference_space_type=xr.ReferenceSpaceType.VIEW,
+        )
+    )
+
     global action_set
     action_set = xr.create_action_set(
         instance=instance,
@@ -330,6 +339,40 @@ def stop_vr():
     print("Stopped OpenXR")
 
 
+def _convert_pose(space_location: xr.SpaceLocation, index: int, predicted_display_time: ctypes.c_uint64):
+    if space_location.location_flags & xr.SPACE_LOCATION_POSITION_VALID_BIT:
+
+        # Convert to Blender's coordinate system
+        position = space_location.pose.position  # Vec3 equivalent
+        position = mathutils.Vector((position.x, position.y, position.z))
+
+        rotation = space_location.pose.orientation  # Vec4 equivalent (quaternion)
+        rotation = mathutils.Quaternion((rotation.w, rotation.x, rotation.y, rotation.z))
+
+        mat = rotation.to_matrix().to_4x4()
+        mat.translation = position
+
+        mat_world = (
+            bpy_extras.io_utils.axis_conversion("Z", "Y", "Y", "Z")
+            .to_4x4()
+        )
+        mat_world = mat_world @ mat
+
+        # Apply scale
+        root = bpy.data.objects.get("VR Root")
+        if root:
+            mat_world = mat_world @ mathutils.Matrix.Scale(root.scale.length, 4)
+
+        if index >= len(paths):
+            name = "HMD"
+        else:
+            name = xr.path_to_string(instance, paths[index])
+
+        return datetime.datetime.fromtimestamp(predicted_display_time.value / 1e9), name, mat_world
+
+    return None
+
+
 def _get_poses(predicted_display_time):
     """
     Must only be called when the session state is FOCUSED
@@ -351,33 +394,19 @@ def _get_poses(predicted_display_time):
             base_space=base_space,
             time=predicted_display_time,
         )
+        converted = _convert_pose(space_location, index, predicted_display_time)
+        if converted:
+            yield converted
 
-        if space_location.location_flags & xr.SPACE_LOCATION_POSITION_VALID_BIT:
-
-            # Convert to Blender's coordinate system
-            position = space_location.pose.position  # Vec3 equivalent
-            position = mathutils.Vector((position.x, position.y, position.z))
-
-            rotation = space_location.pose.orientation  # Vec4 equivalent (quaternion)
-            rotation = mathutils.Quaternion((rotation.w, rotation.x, rotation.y, rotation.z))
-
-            mat = rotation.to_matrix().to_4x4()
-            mat.translation = position
-
-            mat_world = (
-                bpy_extras.io_utils.axis_conversion("Z", "Y", "Y", "Z")
-                .to_4x4()
-            )
-            mat_world = mat_world @ mat
-
-            # Apply scale
-            root = bpy.data.objects.get("VR Root")
-            if root:
-                mat_world = mat_world @ mathutils.Matrix.Scale(root.scale.length, 4)
-
-            name = xr.path_to_string(instance, paths[index])
-
-            yield datetime.datetime.fromtimestamp(predicted_display_time.value / 1e9), name, mat_world
+    # Get HMD pose
+    hmd_location = xr.locate_space(
+        space=view_reference_space,
+        base_space=base_space,
+        time=predicted_display_time,
+    )
+    converted = _convert_pose(hmd_location, len(action_spaces), predicted_display_time)
+    if converted:
+        yield converted
 
 
 def _poll_events():
@@ -657,3 +686,11 @@ def load_trackers(vr_context: VRContext):
         tracker.serial = name
         tracker.type = "tracker" if name.startswith("/user/vive_tracker_htcx/") else "controller"
         tracker.index = i
+
+    # Add hmd
+    tracker = vr_context.trackers.add()
+    tracker.name = "HMD"
+    tracker.prev_name = "HMD"
+    tracker.serial = "HMD"
+    tracker.type = "hmd"
+    tracker.index = len(paths)
