@@ -101,6 +101,11 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         # Recording
         layout.label(text="Recording")
 
+        # Make button big
+        record_btn_row = layout.row()
+        record_btn_row.scale_y = 2
+        record_btn_row.alert = ovr_context.recording
+
         start_record_label = "Start Recording"
         stop_record_label = "Stop Recording"
         active_record_label = stop_record_label if ovr_context.recording else start_record_label
@@ -111,11 +116,11 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
 
         # I hate warnings (for icon type checking)
         # noinspection PyTypeChecker
-        layout.operator(
+        record_btn_row.operator(
             ToggleRecordOperator.bl_idname,
             text=active_record_label,
             icon=active_record_icon,
-            depress=ovr_context.recording
+            depress=True,
         )
 
 

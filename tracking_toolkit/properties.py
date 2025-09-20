@@ -15,7 +15,7 @@ class OVRTarget(bpy.types.PropertyGroup):
     calibration_transform: bpy.props.PointerProperty(type=OVRTransform)
 
 
-def tracker_name_change_callback(self: bpy.types.bpy_struct, context):
+def tracker_name_change_callback(self, _):
     tracker_ref = bpy.data.objects.get(self.prev_name)
     if not tracker_ref:
         return  # Not yet sure what to do here
@@ -30,7 +30,7 @@ def tracker_name_change_callback(self: bpy.types.bpy_struct, context):
     self.prev_name = self.name
 
 
-def armature_filter(self: bpy.types.bpy_struct, obj: bpy.types.ID) -> bool:
+def armature_filter(_, obj: bpy.types.Object) -> bool:
     if obj.type != "ARMATURE":
         return False
 
@@ -43,16 +43,16 @@ def armature_filter(self: bpy.types.bpy_struct, obj: bpy.types.ID) -> bool:
     return True
 
 
-def armature_bone_list(self: bpy.types.bpy_struct, context, edit_text):
+def armature_bone_list(self: "OVRTracker", context, _):
     armature = self.armature or context.scene.OVRContext.armature
     return [b.name for b in armature.data.bones]
 
 
-def tracker_binding_change_callback(self: bpy.types.bpy_struct, context):
+def tracker_binding_change_callback(self: "OVRTracker", context):
     armature: bpy.types.Object = self.armature or context.scene.OVRContext.armature
 
-    bound_bone: bpy.types.PoseBone = armature.pose.bones.get(self.bone)
-    prev_bone: bpy.types.PoseBone = armature.pose.bones.get(self.prev_bone)
+    bound_bone = armature.pose.bones.get(self.bone)
+    prev_bone = armature.pose.bones.get(self.prev_bone)
 
     # Remove existing constraint
     if prev_bone:
@@ -66,6 +66,7 @@ def tracker_binding_change_callback(self: bpy.types.bpy_struct, context):
         constraint.name = "Tracker Binding"
         constraint.target = self.joint.object
 
+        # noinspection PyTypeChecker
         self.prev_bone = bound_bone.name
 
 
@@ -97,9 +98,9 @@ class OVRInput(bpy.types.PropertyGroup):
     b_button: bpy.props.BoolProperty(name="B pressed", default=False)
 
 
-def tracker_joint_filter(self: bpy.types.bpy_struct, obj: bpy.types.ID) -> bool:
+def tracker_joint_filter(_, obj: bpy.types.Object) -> bool:
     ovr_context = bpy.context.scene.OVRContext
-    return True # any(obj == tracker.joint.object for tracker in ovr_context.trackers)
+    return any(obj.name == f"{tracker.name} Joint" for tracker in ovr_context.trackers)
 
 
 class OVRArmatureJoints(bpy.types.PropertyGroup):
@@ -120,8 +121,8 @@ class OVRArmatureJoints(bpy.types.PropertyGroup):
     l_knee: bpy.props.PointerProperty(name="Left knee", type=bpy.types.Object, poll=tracker_joint_filter)
 
 
-def selected_tracker_change_callback(self: bpy.types.bpy_struct, context):
-    selected_tracker: OVRTracker = self.trackers[self.selected_tracker]
+def selected_tracker_change_callback(self: "OVRContext", context):
+    selected_tracker = self.trackers[self.selected_tracker]
 
     obj = selected_tracker.joint.object
     if not obj:
@@ -161,7 +162,7 @@ class Preferences(bpy.types.AddonPreferences):
         default="C:/Program Files (x86)/Steam/steamapps/common/SteamVR"
     )
 
-    def draw(self, context):
+    def draw(self, _):
         layout = self.layout
         layout.label(text="Preferences for Tracking Toolkit")
         layout.prop(self, "steamvr_installation_path")

@@ -55,7 +55,18 @@ class BuildArmatureOperator(bpy.types.Operator):
 
         joints = ovr_context.armature_joints
 
-        foot_height = (get_loc(joints.l_foot).z + get_loc(joints.r_foot).z) / 2  # Average of feet
+        if not joints.hips:
+            self.report(
+                {"ERROR"},
+                "Hips are required to build an armature."
+            )
+            return {"CANCELLED"}
+
+        if joints.l_foot and joints.r_foot:
+            foot_height = (get_loc(joints.l_foot).z + get_loc(joints.r_foot).z) / 2  # Average of feet
+        else:
+            foot_height = 0
+
         float_height = foot_height
 
         # Offset floor
@@ -65,7 +76,6 @@ class BuildArmatureOperator(bpy.types.Operator):
         head_height = (get_loc(joints.head).z - float_height
                        if joints.head
                        else hips_height * 1.8)  # Default height (assume the tracker is higher up on waist)
-
 
         chest_height = (get_loc(joints.chest).z - float_height
                         if joints.chest
@@ -90,8 +100,8 @@ class BuildArmatureOperator(bpy.types.Operator):
         half_height = head_height / 2  # Half of wingspan
 
         # Offset 0.1 since it's added back later for hand tips
-        l_hand_loc = Vector((half_height - 0.1, 0, chest_height))
-        r_hand_loc = Vector((-half_height + 0.1, 0, chest_height))
+        l_hand_loc = Vector((half_height, 0, chest_height))
+        r_hand_loc = Vector((-half_height, 0, chest_height))
 
         elbow_offset = half_height / 2  # Elbows halfway between hands
         elbow_height = (chest_height + neck_height) / 2
@@ -109,8 +119,8 @@ class BuildArmatureOperator(bpy.types.Operator):
             ("head", "spine", joints.head, chest_loc, head_loc),  # Chest to head
 
             # Arms and hands
-            ("arm.l", "spine", joints.l_elbow, chest_loc, l_elbow_loc),  # Chest to elbow
-            ("arm.r", "spine", joints.r_elbow, chest_loc, r_elbow_loc),  # Chest to elbow
+            ("arm.l", "spine", joints.l_elbow or joints.l_hand, chest_loc, l_elbow_loc),  # Chest to elbow
+            ("arm.r", "spine", joints.r_elbow or joints.r_hand, chest_loc, r_elbow_loc),  # Chest to elbow
 
             ("forearm.l", "arm.l", joints.l_hand, l_elbow_loc, l_hand_loc),  # Elbow to hand
             ("forearm.r", "arm.r", joints.r_hand, r_elbow_loc, r_hand_loc),  # Elbow to hand
@@ -146,13 +156,18 @@ class BuildArmatureOperator(bpy.types.Operator):
         # Add constraints
         bpy.ops.object.mode_set(mode="POSE")
 
-        # FK for elbow or knee trackers (and spine)
-        damped_track_bones = ["spine", "hand.l", "hand.r"]
-        if joints.l_elbow and joints.r_elbow:
-            damped_track_bones.extend(["forearm.l", "forearm.r", "arm.l", "arm.r"])
+        # FK for limbs and spine
+        locked_track_bones = [
+            "spine",
+            "thigh.l",
+            "thigh.r"
+        ]
 
-        if joints.l_knee and joints.r_knee:
-            damped_track_bones.extend(["leg.l", "leg.r", "thigh.l", "thigh.r"])
+        damped_track_bones = []
+        if joints.l_elbow:
+            damped_track_bones.append("arm.l")
+        if joints.r_elbow:
+            damped_track_bones.append("arm.r")
 
         # Actually add
         for name, _, parent_obj, _, _ in bone_definitions:
@@ -166,7 +181,7 @@ class BuildArmatureOperator(bpy.types.Operator):
                 for constraint in pose_bone.constraints:
                     pose_bone.constraints.remove(constraint)
 
-                if name in ["root", "head", "foot.l", "foot.r"]:
+                if name in ["root", "head", "hand.l", "hand.r", "foot.r", "foot.l"]:
                     # Location and rotation (no scale because it gets weird)
                     constraint_loc = pose_bone.constraints.new("COPY_LOCATION")
                     constraint_loc.name = "Tracker Binding Location"
@@ -180,11 +195,17 @@ class BuildArmatureOperator(bpy.types.Operator):
                     constraint = pose_bone.constraints.new("IK")
                     constraint.name = "Tracker Binding Child"
                     constraint.target = parent_obj
-                    constraint.chain_count = 3 if "foot" in name else 2
-                    constraint.use_rotation = True
+                    constraint.chain_count = 2
+                    constraint.use_tail = False
 
                 if name in damped_track_bones:
                     constraint = pose_bone.constraints.new("DAMPED_TRACK")
+                    constraint.name = "Tracker Binding Track"
+                    constraint.target = parent_obj
+
+                if name in locked_track_bones:
+                    constraint = pose_bone.constraints.new("LOCKED_TRACK")
+                    constraint.lock_axis = "LOCK_X"
                     constraint.name = "Tracker Binding Track"
                     constraint.target = parent_obj
 
