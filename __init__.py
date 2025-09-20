@@ -30,7 +30,7 @@ from .tracking_toolkit.tracking import stop_preview
 from .tracking_toolkit.ui import PANEL_UL_TrackerList, RecorderPanel, ArmaturePanel
 
 
-def scene_update_callback(scene: bpy.types.Scene, depsgraph):
+def scene_update_callback(scene: bpy.types.Scene, _):
     selected = [obj for obj in scene.objects if obj.select_get()]
     if not selected:
         return
@@ -64,6 +64,8 @@ def register():
     bpy.utils.register_class(BuildArmatureOperator)
 
     # Contexts
+
+    # noinspection PyNoneFunctionAssignment
     bpy.types.Scene.OVRContext = bpy.props.PointerProperty(type=OVRContext)
 
     # UI
