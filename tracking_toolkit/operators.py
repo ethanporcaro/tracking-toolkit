@@ -354,7 +354,27 @@ class ToggleActiveOperator(bpy.types.Operator):
                 init_vr()
                 load_trackers(vr_context)
                 start_preview()
+
+            # We raise ValueErrors with more details, so we can display them to the user.
+            except ValueError as e:
+                import traceback
+                traceback.print_exc()
+
+                print(f"Error starting VR: {e}")
+                self.report(
+                    {"ERROR"},
+                    f"VR could not be started: {e}"
+                )
+                stop_vr()
+                stop_preview()
+                vr_context.enabled = False
+                return {"CANCELLED"}
+
+            # Otherwise, give a generic error message.
             except Exception as e:
+                import traceback
+                traceback.print_exc()
+
                 print(f"Error starting VR: {e}")
                 self.report(
                     {"ERROR"},
@@ -363,7 +383,7 @@ class ToggleActiveOperator(bpy.types.Operator):
                 stop_vr()
                 stop_preview()
                 vr_context.enabled = False
-                return {"FINISHED"}
+                return {"CANCELLED"}
 
         vr_context.enabled = not vr_context.enabled
         return {"FINISHED"}
