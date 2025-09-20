@@ -217,11 +217,6 @@ def _insert_action(ovr_context: OVRContext):
             time_delta = time - take_start_time
             frame = start_frame + time_delta.total_seconds() * framerate
 
-            tracker_obj.matrix_world = pose
-            tracker_obj.keyframe_insert("location", frame=frame)
-            tracker_obj.keyframe_insert("rotation_quaternion", frame=frame)
-            tracker_obj.keyframe_insert("scale", frame=frame)
-
             # Decompose the matrix and append data
             loc, rot, scale = pose.decompose()
 
@@ -283,6 +278,11 @@ def _insert_action(ovr_context: OVRContext):
 
                 # Update the fcurve to apply changes
                 fcurve.update()
+
+        # Select first action slot
+        # Otherwise, the new keyframes will not show
+        action_slot = action.slots[0]
+        tracker_obj.animation_data.action_slot = action_slot
 
     print("Done")
 
