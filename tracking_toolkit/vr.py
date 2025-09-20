@@ -34,6 +34,7 @@ view_reference_space: xr.Space
 
 # Role strings from
 # https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#XR_HTCX_vive_tracker_interaction
+use_vive = False
 role_strings = [
     "left_foot",
     "right_foot",
@@ -154,8 +155,9 @@ def _init_actions():
     global paths
     paths = []
 
-    tracker_paths = _get_tracker_paths()
-    paths.extend(tracker_paths)
+    if use_vive:
+        tracker_paths = _get_tracker_paths()
+        paths.extend(tracker_paths)
 
     controller_paths = _get_controller_paths()
     paths.extend(controller_paths)
@@ -172,21 +174,21 @@ def _init_actions():
     )
 
     # Add Vive trackers
-
-    suggested_binding_paths = (xr.ActionSuggestedBinding * len(role_path_strings))(
-        *[xr.ActionSuggestedBinding(
-            pose_action,
-            xr.string_to_path(instance, f"{role_path_string}/input/grip/pose"))
-            for role_path_string in role_path_strings],
-    )
-    xr.suggest_interaction_profile_bindings(
-        instance=instance,
-        suggested_bindings=xr.InteractionProfileSuggestedBinding(
-            interaction_profile=xr.string_to_path(instance, "/interaction_profiles/htc/vive_tracker_htcx"),
-            count_suggested_bindings=len(suggested_binding_paths),
-            suggested_bindings=suggested_binding_paths,
+    if use_vive:
+        suggested_binding_paths = (xr.ActionSuggestedBinding * len(role_path_strings))(
+            *[xr.ActionSuggestedBinding(
+                pose_action,
+                xr.string_to_path(instance, f"{role_path_string}/input/grip/pose"))
+                for role_path_string in role_path_strings],
         )
-    )
+        xr.suggest_interaction_profile_bindings(
+            instance=instance,
+            suggested_bindings=xr.InteractionProfileSuggestedBinding(
+                interaction_profile=xr.string_to_path(instance, "/interaction_profiles/htc/vive_tracker_htcx"),
+                count_suggested_bindings=len(suggested_binding_paths),
+                suggested_bindings=suggested_binding_paths,
+            )
+        )
 
     # Add controllers
 
@@ -234,10 +236,24 @@ def _init_actions():
 
 
 def init_vr():
-    extensions = [
-        xr.MND_HEADLESS_EXTENSION_NAME,
-        vive_tracker_interaction.EXTENSION_NAME,
-    ]
+    print("Initializing OpenXR...")
+
+    # Get supported extensions
+    supported_extensions = [ext.extension_name.decode() for ext in xr.enumerate_instance_extension_properties()]
+    print(f"Supported extensions: {supported_extensions}")
+
+    if xr.MND_HEADLESS_EXTENSION_NAME not in supported_extensions:
+        raise ValueError("Headless mode is not supported by your runtime. Exiting...")
+
+    extensions = [xr.MND_HEADLESS_EXTENSION_NAME]
+
+    if vive_tracker_interaction.EXTENSION_NAME in supported_extensions:
+        print("Using Vive tracker interaction extension")
+        extensions.append(vive_tracker_interaction.EXTENSION_NAME)
+
+        global use_vive
+        use_vive = True
+
     if platform.system() == "Windows":
         extensions.append(xr.KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME)
     else:  # Linux
