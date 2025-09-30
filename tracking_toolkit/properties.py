@@ -99,7 +99,7 @@ class OVRInput(bpy.types.PropertyGroup):
 
 
 def tracker_joint_filter(_, obj: bpy.types.Object) -> bool:
-    return obj.name.endswith(" Joint")
+    return " Joint" in obj.name
 
 
 class OVRArmatureJoints(bpy.types.PropertyGroup):
