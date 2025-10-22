@@ -16,7 +16,7 @@ license = [
 ]
 
 wheels = [
-    "./wheels/openvr-2.5.102-py3-none-any.whl"
+    "./wheels/openvr-2.12.1401-py3-none-any.whl"
 ]
 
 [build]
