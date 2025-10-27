@@ -99,8 +99,7 @@ class OVRInput(bpy.types.PropertyGroup):
 
 
 def tracker_joint_filter(_, obj: bpy.types.Object) -> bool:
-    ovr_context = bpy.context.scene.OVRContext
-    return any(obj.name == f"{tracker.name} Joint" for tracker in ovr_context.trackers)
+    return " Joint" in obj.name
 
 
 class OVRArmatureJoints(bpy.types.PropertyGroup):
