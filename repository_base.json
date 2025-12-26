@@ -7,7 +7,7 @@
       "id": "tracking_toolkit",
       "name": "Tracking Toolkit",
       "tagline": "Use OpenXR trackers and devices directly in Blender",
-      "version": "1.2.0",
+      "version": "2.0.0",
       "type": "add-on",
       "maintainer": "Ethan Porcaro <ethan@varrett.com>",
       "license": [
@@ -22,8 +22,7 @@
         "Tracking"
       ],
       "platforms": [
-        "windows-x64",
-        "linux-x64"
+        "windows-x64"
       ],
       "python_versions": [
         "3"
