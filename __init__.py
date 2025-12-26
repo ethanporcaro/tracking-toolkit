@@ -13,21 +13,20 @@ import bpy
 from .tracking_toolkit.operators import (
     CreateRefsOperator,
     ToggleActiveOperator,
-    ToggleCalibrationOperator,
     ToggleRecordOperator,
     BuildArmatureOperator
 )
 from .tracking_toolkit.properties import (
-    OVRContext,
-    OVRArmatureJoints,
-    OVRTracker,
-    OVRTarget,
-    OVRTransform,
-    OVRInput,
+    XRContext,
+    XRArmatureJoints,
+    XRTracker,
+    XRTarget,
+    XRTransform,
+    XRInput,
     Preferences
 )
-from .tracking_toolkit.tracking import stop_preview
 from .tracking_toolkit.ui import PANEL_UL_TrackerList, RecorderPanel, ArmaturePanel
+from .tracking_toolkit.xr_core.tracking import stop_preview
 
 
 def scene_update_callback(scene: bpy.types.Scene, _):
@@ -35,13 +34,13 @@ def scene_update_callback(scene: bpy.types.Scene, _):
     if not selected:
         return
 
-    ovr_context = scene.OVRContext
+    xr_context = scene.XRContext
 
     active = selected[-1].name
-    for tracker in ovr_context.trackers:
+    for tracker in xr_context.trackers:
         if tracker.target.object and (tracker.target.object.name == active or tracker.joint.object.name == active):
-            if ovr_context.selected_tracker != tracker.index:
-                ovr_context.selected_tracker = tracker.index
+            if xr_context.selected_tracker != tracker.index:
+                xr_context.selected_tracker = tracker.index
 
 
 def register():
@@ -49,15 +48,14 @@ def register():
 
     # Props
     bpy.utils.register_class(Preferences)
-    bpy.utils.register_class(OVRTransform)
-    bpy.utils.register_class(OVRTarget)
-    bpy.utils.register_class(OVRTracker)
-    bpy.utils.register_class(OVRInput)
-    bpy.utils.register_class(OVRArmatureJoints)
-    bpy.utils.register_class(OVRContext)
+    bpy.utils.register_class(XRTransform)
+    bpy.utils.register_class(XRTarget)
+    bpy.utils.register_class(XRTracker)
+    bpy.utils.register_class(XRInput)
+    bpy.utils.register_class(XRArmatureJoints)
+    bpy.utils.register_class(XRContext)
 
     # Operators
-    bpy.utils.register_class(ToggleCalibrationOperator)
     bpy.utils.register_class(ToggleActiveOperator)
     bpy.utils.register_class(CreateRefsOperator)
     bpy.utils.register_class(ToggleRecordOperator)
@@ -66,7 +64,7 @@ def register():
     # Contexts
 
     # noinspection PyNoneFunctionAssignment
-    bpy.types.Scene.OVRContext = bpy.props.PointerProperty(type=OVRContext)
+    bpy.types.Scene.XRContext = bpy.props.PointerProperty(type=XRContext)
 
     # UI
     bpy.utils.register_class(PANEL_UL_TrackerList)
@@ -89,22 +87,21 @@ def unregister():
     bpy.utils.unregister_class(ArmaturePanel)
 
     # Contexts
-    del bpy.types.Scene.OVRContext
+    del bpy.types.Scene.XRContext
 
     # Classes
     bpy.utils.unregister_class(BuildArmatureOperator)
     bpy.utils.unregister_class(ToggleRecordOperator)
     bpy.utils.unregister_class(CreateRefsOperator)
     bpy.utils.unregister_class(ToggleActiveOperator)
-    bpy.utils.unregister_class(ToggleCalibrationOperator)
 
     # Props
-    bpy.utils.unregister_class(OVRContext)
-    bpy.utils.unregister_class(OVRArmatureJoints)
-    bpy.utils.unregister_class(OVRInput)
-    bpy.utils.unregister_class(OVRTracker)
-    bpy.utils.unregister_class(OVRTarget)
-    bpy.utils.unregister_class(OVRTransform)
+    bpy.utils.unregister_class(XRContext)
+    bpy.utils.unregister_class(XRArmatureJoints)
+    bpy.utils.unregister_class(XRInput)
+    bpy.utils.unregister_class(XRTracker)
+    bpy.utils.unregister_class(XRTarget)
+    bpy.utils.unregister_class(XRTransform)
     bpy.utils.unregister_class(Preferences)
 
     # Handlers

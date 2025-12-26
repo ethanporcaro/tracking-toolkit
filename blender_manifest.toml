@@ -1,22 +1,24 @@
 schema_version = "1.0.0"
 
 id = "tracking_toolkit"
-version = "1.2.0"
+version = "2.0.0"
 name = "Tracking Toolkit"
-tagline = "Use OpenVR trackers and devices directly in Blender"
+tagline = "Use OpenXR trackers and devices directly in Blender"
 maintainer = "Ethan Porcaro <ethan@varrett.com>"
 tags = ["Animation", "Tracking"]
 
 type = "add-on"
 blender_version_min = "4.2.0"
-platforms = ["windows-x64", "linux-x64"]  # Technically, Linux works. Mac is no longer supoprted by Valve
+platforms = ["windows-x64"]  # Technically, Linux works, but it's untested.
 
 license = [
     "SPDX:GPL-3.0-or-later",
 ]
 
 wheels = [
-    "./wheels/openvr-2.12.1401-py3-none-any.whl"
+    "./wheels/pyopenxr-1.1.5301-py3-none-any.whl",
+    "./wheels/pyopengl-3.1.10-py3-none-any.whl",
+    "./wheels/glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.p39.p310.p311.p312.p313-none-win_amd64.whl"
 ]
 
 [build]
@@ -29,4 +31,4 @@ paths_exclude_pattern = [
 ]
 
 [permissions]
-files = "Load SteamVR controller and tracker models"  # Because of potential licensing issues, we cannot bundle them
+files = "Load controller and tracker models"  # Because of potential licensing issues, we cannot bundle them

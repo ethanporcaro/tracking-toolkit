@@ -1,18 +1,17 @@
 import bpy
-import openvr
 from mathutils import Vector
 
-from .properties import Preferences, OVRTransform, OVRContext
-from .tracking import load_trackers, start_recording, stop_recording, start_preview, stop_preview, init_handles
+from .properties import XRContext, Preferences
+from .xr_core.tracking import start_recording, stop_recording, start_preview, stop_preview
 from .. import __package__ as base_package
 
 
 class BuildArmatureOperator(bpy.types.Operator):
     bl_idname = "id.build_armature"
-    bl_label = "Build OpenVR armature"
+    bl_label = "Build OpenXR armature"
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
+        xr_context: XRContext = context.scene.XRContext
 
         # Store selection and mode state
         prev_select = None
@@ -29,17 +28,17 @@ class BuildArmatureOperator(bpy.types.Operator):
             prev_mode = "OBJECT"
 
         # Create armature
-        armature_obj = context.scene.objects.get("OVR Armature")
+        armature_obj = context.scene.objects.get("XR Armature")
         if not armature_obj:
             bpy.ops.object.armature_add(enter_editmode=True, align="WORLD", location=(0, 0, 0))
             armature_obj = context.object
-            armature_obj.name = "OVR Armature"
+            armature_obj.name = "XR Armature"
 
         context.view_layer.objects.active = armature_obj
         bpy.ops.object.mode_set(mode="EDIT")
 
         armature_data = armature_obj.data
-        armature_data.name = "OVR Armature Data"
+        armature_data.name = "XR Armature Data"
         armature_data.show_names = True
         armature_data.display_type = "STICK"
 
@@ -53,7 +52,7 @@ class BuildArmatureOperator(bpy.types.Operator):
                 return obj_prop.matrix_world.translation.copy()  # Use a copy to prevent changing it
             return None
 
-        joints = ovr_context.armature_joints
+        joints = xr_context.armature_joints
 
         if not joints.hips:
             self.report(
@@ -225,136 +224,38 @@ class BuildArmatureOperator(bpy.types.Operator):
 
 class ToggleRecordOperator(bpy.types.Operator):
     bl_idname = "id.toggle_recording"
-    bl_label = "Toggle OpenVR recording"
+    bl_label = "Toggle OpenXR recording"
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
+        xr_context: XRContext = context.scene.XRContext
 
         # Double check state, though this should have been checked before
-        if not ovr_context.enabled:
+        if not xr_context.enabled:
             return {"FINISHED"}
 
-        if ovr_context.calibration_stage != 0:
-            return {"FINISHED"}
-
-        ovr_context.recording = not ovr_context.recording
-        if ovr_context.recording:
-            ovr_context.record_start_frame = context.scene.frame_current
-            start_preview(ovr_context)
+        xr_context.recording = not xr_context.recording
+        if xr_context.recording:
+            xr_context.record_start_frame = context.scene.frame_current
             start_recording()
         else:
-            stop_recording(ovr_context)
-
-        return {"FINISHED"}
-
-
-class ToggleCalibrationOperator(bpy.types.Operator):
-    bl_idname = "id.toggle_calibration"
-    bl_label = "Toggle OpenVR calibration"
-
-    @staticmethod
-    def obj_t_to_prop(obj: bpy.types.Object, prop: OVRTransform):
-        prop.location = obj.location
-        prop.rotation = obj.rotation_euler
-        # Scale shouldn't be applicable to calibration, and OpenVR will sometimes provide non-1 scale factors.
-        # Just keep it as is, since some armatures depend on scale and it causes issues.
-
-    @staticmethod
-    def prop_t_to_obj(prop: OVRTransform, obj: bpy.types.Object):
-        obj.location = prop.location
-        obj.rotation_euler = prop.rotation
-        # Same as above, skip scale.
-
-    def restore_calibration_transforms(self, ovr_context):
-        # Restore transform of trackers
-        for tracker in ovr_context.trackers:
-            if not tracker.connected:
-                continue
-
-            tracker_name = tracker.name
-            tracker_obj = bpy.data.objects.get(tracker_name)
-            if not tracker_obj:
-                continue
-
-            # Save original transforms
-            self.obj_t_to_prop(tracker_obj, tracker.target.transform)
-
-            # Restore calibration transforms
-            self.prop_t_to_obj(tracker.target.calibration_transform, tracker_obj)
-
-    def save_calibration_transforms(self, ovr_context):
-        # Save transform of trackers
-        for tracker in ovr_context.trackers:
-            if not tracker.connected:
-                continue
-
-            tracker_name = tracker.name
-            tracker_obj = bpy.data.objects.get(tracker_name)
-            if not tracker_obj:
-                continue
-
-            # Save calibration transforms
-            self.obj_t_to_prop(tracker_obj, tracker.target.calibration_transform)
-
-            # Restore original transforms
-            self.prop_t_to_obj(tracker.target.transform, tracker_obj)
-
-    @staticmethod
-    def enable_rest():
-        # Put all armatures in rest position
-        for obj in bpy.context.scene.objects:
-            if obj.type == "ARMATURE":
-                obj.data.pose_position = "REST"
-        return {"FINISHED"}
-
-    @staticmethod
-    def disable_rest():
-        # Put all armatures in rest position
-        for obj in bpy.context.scene.objects:
-            if obj.type == "ARMATURE":
-                obj.data.pose_position = "POSE"
-        return {"FINISHED"}
-
-    def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-
-        # Next stage
-        ovr_context.calibration_stage += 1
-        if ovr_context.calibration_stage > 2:
-            ovr_context.calibration_stage = 0
-
-        # Cycle through stages
-        if ovr_context.calibration_stage == 0:  # Complete calibration
-            self.save_calibration_transforms(ovr_context)
-            self.disable_rest()
-            start_preview(ovr_context)
-        elif ovr_context.calibration_stage == 1:  # Tracker Alignment
-            stop_preview()
-            self.restore_calibration_transforms(ovr_context)
-            self.enable_rest()
-        elif ovr_context.calibration_stage == 2:  # Tracker Offsetting
-            stop_preview()
-            self.disable_rest()
+            stop_recording()
 
         return {"FINISHED"}
 
 
 class ToggleActiveOperator(bpy.types.Operator):
     bl_idname = "id.toggle_active"
-    bl_label = "Toggle OpenVR's tracking state"
+    bl_label = "Toggle OpenXR's tracking state"
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-        if ovr_context.enabled:
-            stop_preview()
-            openvr.shutdown()
-        else:
-            openvr.init(openvr.VRApplication_Scene)
-            init_handles()
-            load_trackers(ovr_context)
-            start_preview(ovr_context)
+        xr_context: XRContext = context.scene.XRContext
 
-        ovr_context.enabled = not ovr_context.enabled
+        if xr_context.enabled:
+            stop_preview()
+        else:
+            start_preview()
+
+        xr_context.enabled = not xr_context.enabled
         return {"FINISHED"}
 
 
@@ -364,11 +265,11 @@ class CreateRefsOperator(bpy.types.Operator):
     bl_options = {"UNDO"}
 
     def execute(self, context):
-        ovr_context: OVRContext = context.scene.OVRContext
-        if not ovr_context.enabled:
+        xr_context: XRContext = context.scene.XRContext
+        if not xr_context.enabled:
             self.report(
                 {"ERROR"},
-                "OpenVR has not been connected yet"
+                "OpenXR has not been connected yet"
             )
             return {"FINISHED"}
 
@@ -380,13 +281,13 @@ class CreateRefsOperator(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode="OBJECT")
 
         # Create root
-        root_empty = bpy.data.objects.get("OVR Root")
+        root_empty = bpy.data.objects.get("XR Root")
         if root_empty:
             bpy.data.objects.remove(root_empty)
 
         bpy.ops.object.empty_add(type="CUBE", location=(0, 0, 0))
         root_empty = bpy.context.object
-        root_empty.name = "OVR Root"
+        root_empty.name = "XR Root"
         root_empty.empty_display_size = 0.1
 
         # Import models
@@ -418,8 +319,6 @@ class CreateRefsOperator(bpy.types.Operator):
             )
             return {"FINISHED"}
 
-        load_trackers(ovr_context)
-
         # Default reference transformations
         tracker_model.location = (0, 0, 0)
         tracker_model.rotation_euler = (0, 0, 0)
@@ -436,16 +335,16 @@ class CreateRefsOperator(bpy.types.Operator):
             target_model.select_set(True)
             bpy.context.view_layer.objects.active = target_model
 
-        for tracker in ovr_context.trackers:
+        for tracker in xr_context.trackers:
             # Create new tracker empty if it doesn't exist
             tracker_name = tracker.name
 
             print(">", tracker_name)
 
             # Chose correct model
-            if tracker.type == str(openvr.TrackedDeviceClass_Controller):
+            if tracker.type == "controller":
                 model = controller_model
-            elif tracker.type == str(openvr.TrackedDeviceClass_HMD):
+            elif tracker.type == "hmd":
                 model = hmd_model
             else:
                 model = tracker_model
