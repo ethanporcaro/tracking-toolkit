@@ -1,8 +1,3 @@
-# Compatibility notice!
-This extension has not been updated to work with Blender 5.0 yet. A whole bunch of changes are being made, and an updated version will be out soon.
-
-#
-
 ![images/cover.png](images/cover.png)
 
 # Usage Guide
@@ -28,29 +23,23 @@ If you are updating, you can drag the image or check for updates in the Blender 
 
 After enabling the extension, you will find a new panel in the sidebar tabs.
 
-> ⚠️ SteamVR errors or crashes may also crash Tracking Toolkit, which may crash Blender.
-> I do my best to handle these, but sometimes there are quirks I cannot completely avoid.
-> Blender disables extensions that crash before a full Blender restart.
-
 ## Entering VR
 
-✅ **Run these steps each time you open or restart SteamVR**
+✅ **Run these steps each time you open or restart your OpenXR runtime.**
 
-Begin by clicking the `Start/Connect OpenVR` button. 
+Begin by clicking the `Start/Connect OpenXR` button. 
 
-[<img src="images/start_openvr.png" width="400px"/>](images/start_openvr.png)
+[<img src="images/start-btn.png" width="400px"/>](images/start-btn.png)
 
-This will open SteamVR if it isn't open already, but I recommend starting SteamVR first.
+This will open your OpenXR runtime if it isn't open already, but I recommend opening it first.
 
-> ⚠️ If the button shows `Disconnect/Reset OpenVR`, and SteamVR is **not** running, it probably means you exited Blender without pressing the disconnect button.
-You can just press the button to reset the status, then click `Start/Connect` again.
->
-> [<img src="images/disconnect_openvr.png" width="400px"/>](images/disconnect_openvr.png)
+After connecting OpenXR, you will see connected controllers and trackers show in a list. 
+If these controllers are powered off or disconnected, they will be hidden until they are connected again.
 
-After connecting OpenVR, you should see the serial numbers of the trackers populated in a dropdown.
-The rest of the Tracking Toolkit menu will also appear.
+[<img src="images/tracker-list.png" width="400px"/>](images/tracker-list.png)
 
-[<img src="images/ttk_panel.png" width="400px"/>](images/ttk_panel.png)
+> ⚠️ If you are using Vive Trackers, you will need to use SteamVR as your OpenXR runtime. 
+> You will also need to assign a role to each tracker (waist, foot, etc.) in the SteamVR tracker settings.
 
 At this point, you are now ready to record.
 
@@ -66,7 +55,8 @@ Pressing `Create References` will create two Blender objects for each tracked de
 
 #### Target object
 
-The 'target' will follow the exact transformation of the OpenVR tracker. You should not move this object, since it will be overwritten with the tracker data.
+The 'target' will follow the exact transformation of the OpenXR tracker. 
+You should not move this object, since it will be overwritten with the tracker data.
 
 #### Joint Object
 
@@ -84,9 +74,9 @@ You can press the `Start Recording` button to start writing keyframes to the 'tr
 > I recommend using `File > Save Incremental` in Blender's menu each time you make a new take.
 
 The data is recorded in subframes and won't necessarily match the framerate in Blender's Output Properties. 
-Keyframe data is saved as fast as OpenVR provides it (usually the framerate you set for your VR headset). 
+Keyframe data is saved as fast as OpenXR provides it (usually the refresh rate of your VR headset). 
 
-When OpenVR is connected, the tracker previews will max out at 60 fps in Blender's scene view. 
+When OpenXR is connected, the tracker previews will max out at 60 fps in Blender's scene view. 
 However, the data is saved at full precision when playing it back.
 
 When you press the space bar, the realtime tracking will temporarily pause and the recorded take will play.
@@ -110,7 +100,7 @@ You should select the tracker 'joints,' not the 'targets.'
 > You can hide the bones for unused body parts if they are distracting. 
 > Foot position estimation is *not available* at this time.
 
-Once all the objects are selected, you can press `Build OpenVR Armature`.
+Once all the objects are selected, you can press `Build OpenXR Armature`.
 
 An armature will be generated that looks something like this:
 
@@ -118,7 +108,7 @@ An armature will be generated that looks something like this:
 
 If any of the limbs look off, you can move around the tracker 'joint' objects mentioned in the 'Create References' section of this guide.
 
-> ⚠️ If your character model's rig has different limb proportions than you do, you will want to enter edit mode for the new `OVR Armature` object and adjust the bones to match.
+> ⚠️ If your character model's rig has different limb proportions than you do, you will want to enter edit mode for the new `XR Armature` object and adjust the bones to match.
 > If you build the armature again, custom edits to the armature will be overwritten.
 
 Now that you have the armature generated, you can retarget the animation data to your character model.
@@ -133,16 +123,12 @@ I hope to integrate this soon into Tracking Toolkit, along with one for Rigify.
 Here are the solutions for common problems. 
 Feel free to open an issue if you have additional questions or problems.
 
-**Disconnecting and reconnecting OpenVR with the button at the top of the Tracking Toolkit will often solve minor issues.**
+**Disconnecting and reconnecting OpenXR with the button at the top of the Tracking Toolkit will often solve minor issues.**
 
 ### Incorrect scaling
 
-You can scale the `OVR Root` empty to fix most scale issues.
-Location and Rotation are overwritten when OpenVR is connected but can be adjusted after you're done with all your recording.
-
-### Tracker models don't import correctly when creating references
-
-If your steam installation is in a different directory than `C:/Program Files (x86)/Steam/steamapps/common/SteamVR`, you will need to manually set the path in the addon preferences.
+You can scale the `XR Root` empty to fix most scale issues.
+Location and Rotation are overwritten when OpenXR is connected but can be adjusted after you're done with all your recording.
 
 ### FAQ
 
@@ -167,6 +153,8 @@ Because the [Blender Extensions](https://extensions.blender.org/) platform [requ
 
 That isn't to say that the aforementioned developers had a **huge** impact on this project, as well as other users in the thread.
 
+Also, thank you to [Christopher Bruns](https://github.com/cmbruns) for the amazing [pyopenxr](https://github.com/cmbruns/pyopenxr) library.
+
 # License
 
 This extension is licensed under [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
@@ -187,54 +175,3 @@ You should have received a copy of the GNU General Public License along with thi
 
 * ["Liam Right"](https://www.youtube.com/watch?v=5hOd7XADGaM&list=PLrBKkYQIF33SXziwFjMSMQx_r_6CZ_spu) by me (Ethan Porcaro)
 * Yours? (Let me know!)
-
-# Legacy Settings
-
-> ⚠️ These features are deprecated in favor of the armature generator. 
-They are available for special use cases but may be changed or removed in a future update.
-
-# Binding bones
-
-You can use the `Default Armature`, `Override Armature`, and `Bound Bone` property fields to bind bones to trackers:
-
-* `Default Armature` is the main armature the bones are a part of. You will set this to the armature you want to control.
-
-* `Override Armature` is a per-tracker armature that can be set when you want to control multiple armatures at the same time. Usually, you will leave this blank.
-
-* `Bound Bone` is the bone you want to bind the tracker joint to. This will add a `Copy Transforms` constraint.
-
-Do not rename the created constraint, otherwise it will fail to remove itself when you select a different bone.
-
-
-# Calibration
-
-> ⚠️ You can probably do calibration by eye, but you can follow these steps to calibrate trackers if your setup is complex enough.
-
-There are two stages to the calibration. They can be cycled through with the `Start Calibration` button (its label will change depending on the stage).
-
-## Stage 1: Controller Alignment
-
-In the first step, you need to move the target (opaque) models to where the character would be holding them:
-
-[<img src="images/calibration1.png" width="400px"/>](images/calibration1.png)
-[<img src="images/calibration2.png" width="400px"/>](images/calibration2.png)
-
-
-## Stage 2: Offset Correction
-
-In some rigs, the controls have weird transforms that make constraints behave weirdly.
-
-You can move the joint (wireframe) models until the character's pose matches the rest pose. (This may eventually be automatic)
-
-I usually find the rotations are in increments of 90 or 180 degrees.
-
-[<img src="images/calibration3.png" width="400px"/>](images/calibration3.png)
-[<img src="images/calibration4.png" width="400px"/>](images/calibration4.png)
-
-Then you can press the `Complete Calibration` button.
-
-[<img src="images/calibration5.png" width="400px"/>](images/calibration5.png)
-
-Note that I already set up constraints in this image. You may need to make a few more adjustments. 
-
-**Even if you aren't in calibration mode, you can still move the joint (wireframe) models to fix offsets.**
