@@ -21,8 +21,7 @@ from .tracking_toolkit.properties import (
     XRArmatureJoints,
     XRTracker,
     XRTarget,
-    XRTransform,
-    XRInput
+    XRTransform
 )
 from .tracking_toolkit.ui import PANEL_UL_TrackerList, RecorderPanel, ArmaturePanel
 from .tracking_toolkit.xr_core.tracking import stop_preview
@@ -49,7 +48,6 @@ def register():
     bpy.utils.register_class(XRTransform)
     bpy.utils.register_class(XRTarget)
     bpy.utils.register_class(XRTracker)
-    bpy.utils.register_class(XRInput)
     bpy.utils.register_class(XRArmatureJoints)
     bpy.utils.register_class(XRContext)
 
@@ -96,7 +94,6 @@ def unregister():
     # Props
     bpy.utils.unregister_class(XRContext)
     bpy.utils.unregister_class(XRArmatureJoints)
-    bpy.utils.unregister_class(XRInput)
     bpy.utils.unregister_class(XRTracker)
     bpy.utils.unregister_class(XRTarget)
     bpy.utils.unregister_class(XRTransform)

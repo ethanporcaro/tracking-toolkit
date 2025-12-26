@@ -5,7 +5,6 @@ from mathutils import Vector
 
 from .properties import XRContext
 from .xr_core.tracking import start_recording, stop_recording, start_preview, stop_preview
-from .. import __package__ as base_package
 
 
 class BuildArmatureOperator(bpy.types.Operator):

@@ -21,7 +21,7 @@ jobs:
         run: pip wheel -r requirements.txt -w ./wheels
       - name: package
         run: |
-          zip -r ${{ env.ZIP_NAME }} ./* -x "images/*" "index.json"
+          zip -r ${{ env.ZIP_NAME }} ./* -x "images/*"
 
       - name: create repository manifest
         run: |
