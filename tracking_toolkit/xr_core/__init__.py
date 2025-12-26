@@ -35,7 +35,9 @@ def run_xr(check_break_fn):
     available_extensions = xr.enumerate_instance_extension_properties()
 
     enabled_extensions = [xr.KHR_OPENGL_ENABLE_EXTENSION_NAME]
-    if xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME in available_extensions:
+
+    use_vive_trackers = xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME in available_extensions
+    if use_vive_trackers:
         print("Using Vive trackers")
         enabled_extensions.append(xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME)
 
@@ -45,7 +47,11 @@ def run_xr(check_break_fn):
             session_create_info=xr.SessionCreateInfo()  # We need to reinitialize the default parameter.
     ) as context:
         # Setup actions
-        paths = [xr.string_to_path(context.instance, data.action_path) for data in default_action_data]
+        action_data = default_action_data.copy()
+        if use_vive_trackers:
+            action_data.extend(vive_tracker_action_data)
+
+        paths = [xr.string_to_path(context.instance, data.action_path) for data in action_data]
         action = xr.create_action(
             action_set=context.default_action_set,
             create_info=xr.ActionCreateInfo(
@@ -57,6 +63,7 @@ def run_xr(check_break_fn):
             )
         )
 
+        # Controller suggested bindings
         suggested_bindings = [xr.ActionSuggestedBinding(
             action=action,
             binding=xr.string_to_path(
@@ -64,6 +71,7 @@ def run_xr(check_break_fn):
                 path_string=data.action_path + data.subaction_path,
             )
         ) for data in default_action_data]
+
         xr.suggest_interaction_profile_bindings(
             instance=context.instance,
             suggested_bindings=xr.InteractionProfileSuggestedBinding(
@@ -76,8 +84,31 @@ def run_xr(check_break_fn):
             )
         )
 
+        # Vive tracker suggested bindings
+        if use_vive_trackers:
+            suggested_bindings = [xr.ActionSuggestedBinding(
+                action=action,
+                binding=xr.string_to_path(
+                    instance=context.instance,
+                    path_string=data.action_path + data.subaction_path,
+                )
+            ) for data in vive_tracker_action_data]
+
+            xr.suggest_interaction_profile_bindings(
+                instance=context.instance,
+                suggested_bindings=xr.InteractionProfileSuggestedBinding(
+                    interaction_profile=xr.string_to_path(
+                        context.instance,
+                        "/interaction_profiles/htc/vive_tracker_htcx"
+                    ),
+                    count_suggested_bindings=len(suggested_bindings),
+                    suggested_bindings=suggested_bindings,
+                )
+            )
+
+        # Create action spaces
         spaces = {}
-        for data in default_action_data:
+        for data in action_data:
             spaces[data.name] = xr.create_action_space(
                 session=context.session,
                 create_info=xr.ActionSpaceCreateInfo(
