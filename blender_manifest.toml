@@ -31,4 +31,4 @@ paths_exclude_pattern = [
 ]
 
 [permissions]
-files = "Load controller and tracker models"  # Because of potential licensing issues, we cannot bundle them
+files = "Load controller and tracker models"

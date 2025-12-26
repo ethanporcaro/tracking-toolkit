@@ -1,7 +1,5 @@
 import bpy
 
-from .. import __package__ as base_package
-
 
 class XRTransform(bpy.types.PropertyGroup):
     location: bpy.props.FloatVectorProperty(name="Location", default=(0, 0, 0))
@@ -84,17 +82,3 @@ class XRContext(bpy.types.PropertyGroup):
 
     armature_joints: bpy.props.PointerProperty(type=XRArmatureJoints, name="Armature Joints")
 
-
-class Preferences(bpy.types.AddonPreferences):
-    bl_idname = base_package
-
-    steamvr_installation_path: bpy.props.StringProperty(
-        name="SteamVR Installation Path",
-        subtype="FILE_PATH",
-        default="C:/Program Files (x86)/Steam/steamapps/common/SteamVR"
-    )
-
-    def draw(self, _):
-        layout = self.layout
-        layout.label(text="Preferences for Tracking Toolkit")
-        layout.prop(self, "steamvr_installation_path")

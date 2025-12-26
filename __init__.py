@@ -22,8 +22,7 @@ from .tracking_toolkit.properties import (
     XRTracker,
     XRTarget,
     XRTransform,
-    XRInput,
-    Preferences
+    XRInput
 )
 from .tracking_toolkit.ui import PANEL_UL_TrackerList, RecorderPanel, ArmaturePanel
 from .tracking_toolkit.xr_core.tracking import stop_preview
@@ -47,7 +46,6 @@ def register():
     print("Loading Tracking Toolkit")
 
     # Props
-    bpy.utils.register_class(Preferences)
     bpy.utils.register_class(XRTransform)
     bpy.utils.register_class(XRTarget)
     bpy.utils.register_class(XRTracker)
@@ -102,7 +100,6 @@ def unregister():
     bpy.utils.unregister_class(XRTracker)
     bpy.utils.unregister_class(XRTarget)
     bpy.utils.unregister_class(XRTransform)
-    bpy.utils.unregister_class(Preferences)
 
     # Handlers
     bpy.app.handlers.depsgraph_update_post.clear()

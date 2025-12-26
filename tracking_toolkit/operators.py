@@ -1,7 +1,9 @@
+import os
+
 import bpy
 from mathutils import Vector
 
-from .properties import XRContext, Preferences
+from .properties import XRContext
 from .xr_core.tracking import start_recording, stop_recording, start_preview, stop_preview
 from .. import __package__ as base_package
 
@@ -292,32 +294,20 @@ class CreateRefsOperator(bpy.types.Operator):
 
         # Import models
 
-        # Get model paths from preferences
-        preferences: Preferences | None = context.preferences.addons[base_package].preferences
+        # Get model paths
+        assets_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../assets")
+        tracker_model_path = f"{assets_path}/tracker.obj"
+        controller_model_path = f"{assets_path}/controller.obj"
+        hmd_model_path = f"{assets_path}/hmd.obj"
 
-        install_dir = preferences.steamvr_installation_path
-        tracker_model_path = (f"{install_dir}/drivers/htc/resources/rendermodels/"
-                              "vr_tracker_vive_3_0/vr_tracker_vive_3_0.obj")
-        controller_model_path = (f"{install_dir}/resources/rendermodels/"
-                                 "vr_controller_vive_1_5/vr_controller_vive_1_5.obj")
-        hmd_model_path = (f"{install_dir}/resources/rendermodels/"
-                          "generic_hmd/generic_hmd.obj")
+        bpy.ops.wm.obj_import(filepath=tracker_model_path)
+        tracker_model = bpy.context.object
 
-        try:
-            bpy.ops.wm.obj_import(filepath=tracker_model_path)
-            tracker_model = bpy.context.object
+        bpy.ops.wm.obj_import(filepath=controller_model_path)
+        controller_model = bpy.context.object
 
-            bpy.ops.wm.obj_import(filepath=controller_model_path)
-            controller_model = bpy.context.object
-
-            bpy.ops.wm.obj_import(filepath=hmd_model_path)
-            hmd_model = bpy.context.object
-        except RuntimeError:
-            self.report(
-                {"ERROR"},
-                "Could not import tracker models. Check your SteamVR path in the addon preferences."
-            )
-            return {"FINISHED"}
+        bpy.ops.wm.obj_import(filepath=hmd_model_path)
+        hmd_model = bpy.context.object
 
         # Default reference transformations
         tracker_model.location = (0, 0, 0)
