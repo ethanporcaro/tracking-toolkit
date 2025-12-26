@@ -38,7 +38,10 @@ def _update_references(poses):
         for i, tracker_name in enumerate(poses.keys()):
             tracker = xr_context.trackers.add()
             tracker.name = tracker_name
-            tracker.type = "tracker" if tracker_name in vive_role_strings else "controller"
+            tracker.type = (
+                "tracker" if tracker_name in vive_role_strings else
+                "hmd" if tracker_name == "head" else "controller"
+            )
             tracker.index = i
 
 

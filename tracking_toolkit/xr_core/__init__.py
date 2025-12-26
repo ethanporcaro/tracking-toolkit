@@ -156,6 +156,17 @@ def run_xr(check_break_fn):
                     if space_location.location_flags & xr.SPACE_LOCATION_POSITION_VALID_BIT:
                         poses[space_name] = _pose_to_mat(space_location.pose)
 
+                # Get HMD pose
+                view_state, views = xr.locate_views(
+                    session=context.session,
+                    view_locate_info=xr.ViewLocateInfo(
+                        view_configuration_type=context.view_configuration_type,
+                        display_time=frame_state.predicted_display_time,
+                        space=context.space,
+                    )
+                )
+                poses["head"] = _pose_to_mat(views[xr.utils.Eye.LEFT.value].pose)
+
                 if len(poses) == 0:
                     continue
 
