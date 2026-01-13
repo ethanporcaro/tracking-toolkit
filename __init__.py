@@ -1,30 +1,27 @@
-# Dev reload
-if "bpy" in locals():
-    import sys
-    print("Reloading Tracking Toolkit Modules")
-    prefix = __package__ + "."
-    for name in sys.modules.copy():
-        if name.startswith(prefix):
-            print(f"Reloading {name}")
-            del sys.modules[name]
+_needs_reload = "bpy" in locals()
 
 import bpy
 
-from .tracking_toolkit.operators import (
-    CreateRefsOperator,
-    ToggleActiveOperator,
-    ToggleRecordOperator,
-    BuildArmatureOperator
+from .tracking_toolkit import (
+    operators,
+    properties,
+    ui
 )
-from .tracking_toolkit.properties import (
-    XRContext,
-    XRArmatureJoints,
-    XRTracker,
-    XRTarget,
-    XRTransform
+from .tracking_toolkit.xr_core import (
+    actions,
+    tracking
 )
-from .tracking_toolkit.ui import PANEL_UL_TrackerList, RecorderPanel, ArmaturePanel
-from .tracking_toolkit.xr_core.tracking import stop_preview
+
+if _needs_reload:
+    import importlib
+
+    operators = importlib.reload(operators)
+    properties = importlib.reload(properties)
+    ui = importlib.reload(ui)
+    actions = importlib.reload(actions)
+    tracking = importlib.reload(tracking)
+
+    print("Tracking Toolkit Reloaded")
 
 
 def scene_update_callback(scene: bpy.types.Scene, _):
@@ -42,61 +39,61 @@ def scene_update_callback(scene: bpy.types.Scene, _):
 
 
 def register():
-    print("Loading Tracking Toolkit")
+    print("Loading Tracking Toolkit...")
 
     # Props
-    bpy.utils.register_class(XRTransform)
-    bpy.utils.register_class(XRTarget)
-    bpy.utils.register_class(XRTracker)
-    bpy.utils.register_class(XRArmatureJoints)
-    bpy.utils.register_class(XRContext)
+    bpy.utils.register_class(properties.XRTransform)
+    bpy.utils.register_class(properties.XRTarget)
+    bpy.utils.register_class(properties.XRTracker)
+    bpy.utils.register_class(properties.XRArmatureJoints)
+    bpy.utils.register_class(properties.XRContext)
 
     # Operators
-    bpy.utils.register_class(ToggleActiveOperator)
-    bpy.utils.register_class(CreateRefsOperator)
-    bpy.utils.register_class(ToggleRecordOperator)
-    bpy.utils.register_class(BuildArmatureOperator)
+    bpy.utils.register_class(operators.ToggleActiveOperator)
+    bpy.utils.register_class(operators.CreateRefsOperator)
+    bpy.utils.register_class(operators.ToggleRecordOperator)
+    bpy.utils.register_class(operators.BuildArmatureOperator)
 
     # Contexts
-
-    # noinspection PyNoneFunctionAssignment
-    bpy.types.Scene.XRContext = bpy.props.PointerProperty(type=XRContext)
+    bpy.types.Scene.XRContext = bpy.props.PointerProperty(type=properties.XRContext)
 
     # UI
-    bpy.utils.register_class(PANEL_UL_TrackerList)
-    bpy.utils.register_class(RecorderPanel)
-    bpy.utils.register_class(ArmaturePanel)
+    bpy.utils.register_class(ui.PANEL_UL_TrackerList)
+    bpy.utils.register_class(ui.RecorderPanel)
+    bpy.utils.register_class(ui.ArmaturePanel)
 
     # Handlers
     bpy.app.handlers.depsgraph_update_post.clear()
     bpy.app.handlers.depsgraph_update_post.append(scene_update_callback)
 
+    print("Loaded Tracking Toolkit")
+
 
 def unregister():
     print("Unloading Tracking Toolkit...")
 
-    stop_preview()
+    tracking.stop_preview()
 
     # UI
-    bpy.utils.unregister_class(PANEL_UL_TrackerList)
-    bpy.utils.unregister_class(RecorderPanel)
-    bpy.utils.unregister_class(ArmaturePanel)
+    bpy.utils.unregister_class(ui.PANEL_UL_TrackerList)
+    bpy.utils.unregister_class(ui.RecorderPanel)
+    bpy.utils.unregister_class(ui.ArmaturePanel)
 
     # Contexts
     del bpy.types.Scene.XRContext
 
     # Classes
-    bpy.utils.unregister_class(BuildArmatureOperator)
-    bpy.utils.unregister_class(ToggleRecordOperator)
-    bpy.utils.unregister_class(CreateRefsOperator)
-    bpy.utils.unregister_class(ToggleActiveOperator)
+    bpy.utils.unregister_class(operators.BuildArmatureOperator)
+    bpy.utils.unregister_class(operators.ToggleRecordOperator)
+    bpy.utils.unregister_class(operators.CreateRefsOperator)
+    bpy.utils.unregister_class(operators.ToggleActiveOperator)
 
     # Props
-    bpy.utils.unregister_class(XRContext)
-    bpy.utils.unregister_class(XRArmatureJoints)
-    bpy.utils.unregister_class(XRTracker)
-    bpy.utils.unregister_class(XRTarget)
-    bpy.utils.unregister_class(XRTransform)
+    bpy.utils.unregister_class(properties.XRContext)
+    bpy.utils.unregister_class(properties.XRArmatureJoints)
+    bpy.utils.unregister_class(properties.XRTracker)
+    bpy.utils.unregister_class(properties.XRTarget)
+    bpy.utils.unregister_class(properties.XRTransform)
 
     # Handlers
     bpy.app.handlers.depsgraph_update_post.clear()
