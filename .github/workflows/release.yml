@@ -18,7 +18,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
       - name: download wheels
-        run: pip wheel -r requirements.txt -w ./wheels
+        run: pip wheel --no-deps -r requirements.txt -w ./wheels
       - name: package
         run: |
           zip -r ${{ env.ZIP_NAME }} ./* -x "images/*"
