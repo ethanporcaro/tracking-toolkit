@@ -1,25 +1,16 @@
 import datetime
-import queue
-import threading
 
 import bpy
 import mathutils
+from bpy_extras import anim_utils
 
-from . import run_xr
 from .actions import vive_role_strings
+from .core import start_xr, tick_xr, stop_xr
 from ..properties import XRContext
 
 # Shared variables
-
-pose_queue = queue.Queue()
-polling_thread = None
-stop_thread_flag = threading.Event()
-
 data_buffer = []
-buffer_lock = threading.Lock()
-
-action_sets = []
-action_handles = {}
+should_stop = False
 
 
 def _update_references(poses):
@@ -45,39 +36,30 @@ def _update_references(poses):
             tracker.index = i
 
 
-def _poll_tracking():
-    global pose_queue, stop_thread_flag, data_buffer, buffer_lock
+def _xr_tick_timer():
+    global data_buffer, should_stop
 
-    for poses in run_xr(lambda: stop_thread_flag.is_set()):
-        if not poses:
-            continue
+    poses = tick_xr()
+    if poses:
+        data_buffer.append([datetime.datetime.now(), poses])
 
-        _update_references(poses)
-
-        with buffer_lock:
-            data_buffer.append([datetime.datetime.now(), poses])
+    return 1.0 / 90  # 90hz
 
 
 def _clear_buffer():
-    global data_buffer, buffer_lock
-    with buffer_lock:
-        data_buffer.clear()
+    global data_buffer
+    data_buffer.clear()
 
 
 def _get_buffer() -> list[tuple[datetime.datetime, dict[str, mathutils.Matrix]]]:
-    global data_buffer, buffer_lock
-
-    with buffer_lock:
-        buffer_copy = data_buffer.copy()
-
-    return buffer_copy
+    global data_buffer
+    return data_buffer.copy()
 
 
 def _get_latest_poses() -> dict[str, mathutils.Matrix] | None:
-    global data_buffer, buffer_lock
-    with buffer_lock:
-        if len(data_buffer) == 0:
-            return None
+    global data_buffer
+    if len(data_buffer) == 0:
+        return None
 
     return data_buffer[-1][1]
 
@@ -235,12 +217,11 @@ def stop_recording():
 
 
 def start_preview():
-    global polling_thread, stop_thread_flag, data_buffer, buffer_lock
+    _clear_buffer()
+    start_xr()
 
-    stop_thread_flag.clear()
-    polling_thread = threading.Thread(target=_poll_tracking)
-    polling_thread.daemon = True  # Quit with Blender
-    polling_thread.start()
+    if not bpy.app.timers.is_registered(_xr_tick_timer):
+        bpy.app.timers.register(_xr_tick_timer)
 
     if not bpy.app.timers.is_registered(_pose_vis_timer):
         bpy.app.timers.register(_pose_vis_timer)
@@ -249,16 +230,13 @@ def start_preview():
 
 
 def stop_preview():
-    global polling_thread, stop_thread_flag
-
     if bpy.app.timers.is_registered(_pose_vis_timer):
         bpy.app.timers.unregister(_pose_vis_timer)
 
-    if polling_thread and polling_thread.is_alive():
-        stop_thread_flag.set()
-        polling_thread.join()
+    if bpy.app.timers.is_registered(_xr_tick_timer):
+        bpy.app.timers.unregister(_xr_tick_timer)
 
-    polling_thread = None
-    stop_thread_flag.clear()
+    stop_xr()
+    _clear_buffer()
 
     print("OpenXR Preview Stopped")
