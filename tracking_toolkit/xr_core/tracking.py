@@ -169,10 +169,16 @@ def _insert_action():
         for data_path, num_components, values in fcurve_props:
             for i in range(num_components):
                 # Get or create the F-Curve
-                fcurve = action.fcurves.find(data_path, index=i)
+                if len(action.slots) > 0:
+                    action_slot = action.slots[0]
+                else:
+                    action_slot = action.slots.new("OBJECT", "MOCAP")
+
+                channelbag = anim_utils.action_ensure_channelbag_for_slot(action, action_slot)
+                fcurve = channelbag.fcurves.find(data_path, index=i)
                 if fcurve:
-                    action.fcurves.remove(fcurve)
-                fcurve = action.fcurves.new(data_path, index=i)
+                    channelbag.fcurves.remove(fcurve)
+                fcurve = channelbag.fcurves.new(data_path, index=i)
 
                 # Fill with points
                 fcurve.keyframe_points.add(num_keys)
