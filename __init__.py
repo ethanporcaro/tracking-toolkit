@@ -9,7 +9,8 @@ from .tracking_toolkit import (
 )
 from .tracking_toolkit.xr_core import (
     actions,
-    tracking
+    tracking,
+    core
 )
 
 if _needs_reload:
@@ -20,6 +21,7 @@ if _needs_reload:
     ui = importlib.reload(ui)
     actions = importlib.reload(actions)
     tracking = importlib.reload(tracking)
+    core = importlib.reload(core)
 
     print("Tracking Toolkit Reloaded")
 
@@ -33,7 +35,7 @@ def scene_update_callback(scene: bpy.types.Scene, _):
 
     active = selected[-1].name
     for tracker in xr_context.trackers:
-        if tracker.target.object and (tracker.target.object.name == active or tracker.joint.object.name == active):
+        if tracker.target.object and (tracker.target.object.name == active or tracker.offset.object.name == active):
             if xr_context.selected_tracker != tracker.index:
                 xr_context.selected_tracker = tracker.index
 

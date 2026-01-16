@@ -19,7 +19,8 @@ def _pose_to_mat(pose):
         pose.orientation.z
     ))
     mat = mathutils.Matrix.LocRotScale(loc, rot, (1, 1, 1))
-    mat_world = bpy_extras.io_utils.axis_conversion("Z", "Y", "Y", "Z").to_4x4()
+    # Convert OpenXR to Blender spaces.
+    mat_world = bpy_extras.io_utils.axis_conversion("-Z", "Y", "Y", "Z").to_4x4()
     return mat_world @ mat
 
 

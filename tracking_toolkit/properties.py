@@ -18,12 +18,12 @@ class XRTracker(bpy.types.PropertyGroup):
     type: bpy.props.StringProperty(name="Tracker type")
 
     target: bpy.props.PointerProperty(type=XRTarget)
-    joint: bpy.props.PointerProperty(type=XRTarget)  # Joint offset
+    offset: bpy.props.PointerProperty(type=XRTarget)
 
 
 def tracker_joint_filter(_, obj: bpy.types.Object) -> bool:
     xr_context = bpy.context.scene.XRContext
-    return any(obj.name == f"{tracker.name} Joint" for tracker in xr_context.trackers)
+    return any(obj.name == f"{tracker.name} Offset" for tracker in xr_context.trackers)
 
 
 class XRArmatureJoints(bpy.types.PropertyGroup):
@@ -47,7 +47,7 @@ class XRArmatureJoints(bpy.types.PropertyGroup):
 def selected_tracker_change_callback(self: "XRContext", context):
     selected_tracker = self.trackers[self.selected_tracker]
 
-    obj = selected_tracker.joint.object
+    obj = selected_tracker.offset.object
     if not obj:
         return
 

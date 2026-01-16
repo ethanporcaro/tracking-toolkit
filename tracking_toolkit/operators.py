@@ -267,12 +267,6 @@ class CreateRefsOperator(bpy.types.Operator):
 
     def execute(self, context):
         xr_context: XRContext = context.scene.XRContext
-        if not xr_context.enabled:
-            self.report(
-                {"ERROR"},
-                "OpenXR has not been connected yet"
-            )
-            return {"FINISHED"}
 
         # Set to object mode while keeping track of the previous one
         prev_obj = bpy.context.object
@@ -286,7 +280,7 @@ class CreateRefsOperator(bpy.types.Operator):
         if root_empty:
             bpy.data.objects.remove(root_empty)
 
-        bpy.ops.object.empty_add(type="CUBE", location=(0, 0, 0))
+        bpy.ops.object.empty_add(type="PLAIN_AXES", location=(0, 0, 0))
         root_empty = bpy.context.object
         root_empty.name = "XR Root"
         root_empty.empty_display_size = 0.1
@@ -295,28 +289,21 @@ class CreateRefsOperator(bpy.types.Operator):
 
         # Get model paths
         assets_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../assets")
-        tracker_model_path = f"{assets_path}/tracker.obj"
-        controller_model_path = f"{assets_path}/controller.obj"
-        hmd_model_path = f"{assets_path}/hmd.obj"
+        tracker_model_path = os.path.join(assets_path, "track-point.obj")
+        offset_model_path = os.path.join(assets_path, "track-point-offset.obj")
 
         bpy.ops.wm.obj_import(filepath=tracker_model_path)
         tracker_model = bpy.context.object
 
-        bpy.ops.wm.obj_import(filepath=controller_model_path)
-        controller_model = bpy.context.object
-
-        bpy.ops.wm.obj_import(filepath=hmd_model_path)
-        hmd_model = bpy.context.object
+        bpy.ops.wm.obj_import(filepath=offset_model_path)
+        tracker_offset_model = bpy.context.object
 
         # Default reference transformations
         tracker_model.location = (0, 0, 0)
         tracker_model.rotation_euler = (0, 0, 0)
 
-        controller_model.location = (0, 0, 0)
-        controller_model.rotation_euler = (0, 0, 0)
-
-        hmd_model.location = (0, 0, 0)
-        hmd_model.rotation_euler = (0, 0, 0)
+        tracker_offset_model.location = (0, 0, 0)
+        tracker_offset_model.rotation_euler = (0, 0, 0)
 
         # Create references
         def select_model(target_model: bpy.types.Object):
@@ -328,23 +315,13 @@ class CreateRefsOperator(bpy.types.Operator):
             # Create new tracker empty if it doesn't exist
             tracker_name = tracker.name
 
-            print(">", tracker_name)
-
-            # Chose correct model
-            if tracker.type == "controller":
-                model = controller_model
-            elif tracker.type == "hmd":
-                model = hmd_model
-            else:
-                model = tracker_model
-
             # Delete existing target
             tracker_target = bpy.data.objects.get(tracker_name)
             if tracker_target:
                 bpy.data.objects.remove(tracker_target)
 
             # Create target
-            select_model(model)
+            select_model(tracker_model)
             bpy.ops.object.duplicate()
 
             tracker_target = bpy.context.object
@@ -352,44 +329,45 @@ class CreateRefsOperator(bpy.types.Operator):
 
             tracker_target.show_name = True
             tracker_target.hide_render = True
+            tracker_target.show_wire = True
+            tracker_target.color = (1.0, 0.0, 0.0, 1.0)  # Red.
 
-            # Create another empty as a joint offset. This is useful when you use a "Copy Transforms" constraint but
-            # the physical tracker doesn't align perfectly with a character's joint
+            # Create another empty as an offset.
+
             # Create one if it doesn't exist
-            joint_name = f"{tracker_name} Joint"
+            offset_name = f"{tracker_name} Offset"
 
-            # Delete existing joint
-            tracker_joint = bpy.data.objects.get(joint_name)
-            if tracker_joint:
-                bpy.data.objects.remove(tracker_joint)
+            # Delete existing offset.
+            tracker_offset = bpy.data.objects.get(offset_name)
+            if tracker_offset:
+                bpy.data.objects.remove(tracker_offset)
 
-            # Create joint
-            select_model(model)
+            # Create offset.
+            select_model(tracker_offset_model)
             bpy.ops.object.duplicate()
 
-            tracker_joint = bpy.context.object
-            tracker_joint.name = joint_name
+            tracker_offset = bpy.context.object
+            tracker_offset.name = offset_name
 
-            tracker_joint.display_type = "WIRE"
-            tracker_joint.show_in_front = True
-            tracker_target.hide_render = True
+            tracker_offset.hide_render = True
+            tracker_offset.show_wire = True
+            tracker_offset.color = (0.0, 1.0, 0.0, 1.0)  # Green.
 
             # Assign objects
             tracker.target.object = tracker_target
-            tracker.joint.object = tracker_joint
+            tracker.offset.object = tracker_offset
 
             # Set up parenting
             tracker_target.parent = root_empty
-            tracker_joint.parent = tracker_target
+            tracker_offset.parent = tracker_target
 
             # Set up rotation modes
             tracker_target.rotation_mode = "QUATERNION"
-            tracker_joint.rotation_mode = "QUATERNION"
+            tracker_offset.rotation_mode = "QUATERNION"
 
         # Clean up
         bpy.data.objects.remove(tracker_model)
-        bpy.data.objects.remove(controller_model)
-        bpy.data.objects.remove(hmd_model)
+        bpy.data.objects.remove(tracker_offset_model)
 
         # Restore previous selection
         try:
@@ -403,6 +381,9 @@ class CreateRefsOperator(bpy.types.Operator):
                     bpy.ops.object.mode_set(mode=prev_mode)
         except ReferenceError:
             pass
+
+        # Enable wireframe color display.
+        context.space_data.shading.wireframe_color_type = "OBJECT"
 
         print("Done")
         return {"FINISHED"}
