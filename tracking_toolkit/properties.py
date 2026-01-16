@@ -21,29 +21,6 @@ class XRTracker(bpy.types.PropertyGroup):
     offset: bpy.props.PointerProperty(type=XRTarget)
 
 
-def tracker_joint_filter(_, obj: bpy.types.Object) -> bool:
-    xr_context = bpy.context.scene.XRContext
-    return any(obj.name == f"{tracker.name} Offset" for tracker in xr_context.trackers)
-
-
-class XRArmatureJoints(bpy.types.PropertyGroup):
-    head: bpy.props.PointerProperty(name="Head", type=bpy.types.Object, poll=tracker_joint_filter)
-    chest: bpy.props.PointerProperty(name="Chest", type=bpy.types.Object, poll=tracker_joint_filter)
-    hips: bpy.props.PointerProperty(name="Hips", type=bpy.types.Object, poll=tracker_joint_filter)
-
-    r_hand: bpy.props.PointerProperty(name="Right hand", type=bpy.types.Object, poll=tracker_joint_filter)
-    l_hand: bpy.props.PointerProperty(name="Left hand", type=bpy.types.Object, poll=tracker_joint_filter)
-
-    r_elbow: bpy.props.PointerProperty(name="Right elbow", type=bpy.types.Object, poll=tracker_joint_filter)
-    l_elbow: bpy.props.PointerProperty(name="Left elbow", type=bpy.types.Object, poll=tracker_joint_filter)
-
-    r_foot: bpy.props.PointerProperty(name="Right foot", type=bpy.types.Object, poll=tracker_joint_filter)
-    l_foot: bpy.props.PointerProperty(name="Left foot", type=bpy.types.Object, poll=tracker_joint_filter)
-
-    r_knee: bpy.props.PointerProperty(name="Right knee", type=bpy.types.Object, poll=tracker_joint_filter)
-    l_knee: bpy.props.PointerProperty(name="Left knee", type=bpy.types.Object, poll=tracker_joint_filter)
-
-
 def selected_tracker_change_callback(self: "XRContext", context):
     selected_tracker = self.trackers[self.selected_tracker]
 
@@ -64,5 +41,3 @@ class XRContext(bpy.types.PropertyGroup):
     selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0, update=selected_tracker_change_callback)
 
     record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)
-
-    armature_joints: bpy.props.PointerProperty(type=XRArmatureJoints, name="Armature Joints")

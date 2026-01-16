@@ -47,14 +47,12 @@ def register():
     bpy.utils.register_class(properties.XRTransform)
     bpy.utils.register_class(properties.XRTarget)
     bpy.utils.register_class(properties.XRTracker)
-    bpy.utils.register_class(properties.XRArmatureJoints)
     bpy.utils.register_class(properties.XRContext)
 
     # Operators
     bpy.utils.register_class(operators.ToggleActiveOperator)
     bpy.utils.register_class(operators.CreateRefsOperator)
     bpy.utils.register_class(operators.ToggleRecordOperator)
-    bpy.utils.register_class(operators.BuildArmatureOperator)
 
     # Contexts
     bpy.types.Scene.XRContext = bpy.props.PointerProperty(type=properties.XRContext)
@@ -62,7 +60,6 @@ def register():
     # UI
     bpy.utils.register_class(ui.PANEL_UL_TrackerList)
     bpy.utils.register_class(ui.RecorderPanel)
-    bpy.utils.register_class(ui.ArmaturePanel)
 
     # Handlers
     bpy.app.handlers.depsgraph_update_post.clear()
@@ -79,20 +76,17 @@ def unregister():
     # UI
     bpy.utils.unregister_class(ui.PANEL_UL_TrackerList)
     bpy.utils.unregister_class(ui.RecorderPanel)
-    bpy.utils.unregister_class(ui.ArmaturePanel)
 
     # Contexts
     del bpy.types.Scene.XRContext
 
     # Classes
-    bpy.utils.unregister_class(operators.BuildArmatureOperator)
     bpy.utils.unregister_class(operators.ToggleRecordOperator)
     bpy.utils.unregister_class(operators.CreateRefsOperator)
     bpy.utils.unregister_class(operators.ToggleActiveOperator)
 
     # Props
     bpy.utils.unregister_class(properties.XRContext)
-    bpy.utils.unregister_class(properties.XRArmatureJoints)
     bpy.utils.unregister_class(properties.XRTracker)
     bpy.utils.unregister_class(properties.XRTarget)
     bpy.utils.unregister_class(properties.XRTransform)

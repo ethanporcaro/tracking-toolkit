@@ -4,8 +4,7 @@ from bl_ui.space_view3d_toolbar import View3DPanel
 from .operators import (
     ToggleActiveOperator,
     CreateRefsOperator,
-    ToggleRecordOperator,
-    BuildArmatureOperator
+    ToggleRecordOperator
 )
 from .properties import XRContext
 
@@ -91,35 +90,3 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
             icon=active_record_icon,
             depress=True,
         )
-
-
-class ArmaturePanel(View3DPanel, bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_openxr_armature_menu"
-    bl_label = "Armature Tools"
-    bl_category = "Track TK"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-
-    def draw(self, context: bpy.types.Context):
-        layout = self.layout
-        xr_context: XRContext = context.scene.XRContext
-
-        joints = xr_context.armature_joints
-
-        layout.prop(joints, "head")
-        layout.prop(joints, "chest")
-        layout.prop(joints, "hips")
-
-        layout.prop(joints, "r_hand")
-        layout.prop(joints, "l_hand")
-
-        layout.prop(joints, "r_elbow")
-        layout.prop(joints, "l_elbow")
-
-        layout.prop(joints, "r_foot")
-        layout.prop(joints, "l_foot")
-
-        layout.prop(joints, "r_knee")
-        layout.prop(joints, "l_knee")
-
-        layout.operator(BuildArmatureOperator.bl_idname)
