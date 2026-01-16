@@ -51,19 +51,17 @@ There are a few main buttons on the Tracking Toolkit panel:
 
 ### Create References
 
-Pressing `Create References` will create two Blender objects for each tracked device:
+Pressing `Create References` will create two Blender objects for each tracked device.
+Creating references is generally undo-able, but be careful when overwriting existing references.
 
 #### Target object
 
 The 'target' will follow the exact transformation of the OpenXR tracker. 
 You should not move this object, since it will be overwritten with the tracker data.
 
-#### Joint Object
+#### Offset Object
 
-The 'joint' is a child of the 'target' and **should be moved** instead of the 'target' if corrections need to be made to the tracker's transform.
-This is especially handy when working with the 'Armature Tools.'
-
-Creating references is generally undo-able, but be careful when overwriting existing references.
+The 'offset' is a child of the 'target' and **should be moved** instead of the 'target' if corrections need to be made to the tracker's transform.
 
 ## Recording
 
@@ -81,42 +79,6 @@ However, the data is saved at full precision when playing it back.
 
 When you press the space bar, the realtime tracking will temporarily pause and the recorded take will play.
 
-## Armature tools
-
-✅ **Run these steps after you're done recording.**
-
-Tracking Toolkit has another collapsable UI panel below the main one labeled 'Armature Tools.'
-
-[<img src="images/armature_tools.png" width="400px"/>](images/armature_tools.png)
-
-It allows you to select the tracker objects for each body part.
-You should select the tracker 'joints,' not the 'targets.'
-
-> ℹ️ Hips are *technically* the only required joint.
-> **This requirement will be removed soon!**
-> However, you should at least use hips, head, and hands.
-
-> ⚠️ Even if a body part (like feet) has no trackers assigned, it will still be created in the armature generator.
-> You can hide the bones for unused body parts if they are distracting. 
-> Foot position estimation is *not available* at this time.
-
-Once all the objects are selected, you can press `Build OpenXR Armature`.
-
-An armature will be generated that looks something like this:
-
-[<img src="images/generated_rig.png" width="400px"/>](images/generated_rig.png)
-
-If any of the limbs look off, you can move around the tracker 'joint' objects mentioned in the 'Create References' section of this guide.
-
-> ⚠️ If your character model's rig has different limb proportions than you do, you will want to enter edit mode for the new `XR Armature` object and adjust the bones to match.
-> If you build the armature again, custom edits to the armature will be overwritten.
-
-Now that you have the armature generated, you can retarget the animation data to your character model.
-There is no built-in feature for this yet in Tracking Toolkit. 
-You can manually use bone constraints to do this or use another addon or script.
-
-I made a GitHub issue with an [example script](https://github.com/ethanporcaro/tracking-toolkit/issues/4#issuecomment-3434125039) that I use for Auto Rig Pro rigs.
-I hope to integrate this soon into Tracking Toolkit, along with one for Rigify.
 
 ## Troubleshooting
 
@@ -131,14 +93,6 @@ You can scale the `XR Root` empty to fix most scale issues.
 Location and Rotation are overwritten when OpenXR is connected but can be adjusted after you're done with all your recording.
 
 ### FAQ
-
-Q: Can I offset location and rotation?
-
-A: Not yet. Very soon, probably. For now, it's just scale.
-
-Q: Will other controller models show besides the generic HMD, OG Vive Controller, And Vive Tracker 3.0? What about Oculus Controllers?
-
-A: Not currently. This may be implemented in the future.
 
 Q: Will my scene animations play during recording?
 
@@ -162,7 +116,7 @@ This extension is licensed under [GPL 3.0 or later](https://spdx.org/licenses/GP
 Logos and images under `/images` are in the [Public Domain (CC0)](https://spdx.org/licenses/CC0-1.0.html).
 
 ```text
-Copyright (C) 2025 Ethan Porcaro
+Copyright (C) 2026 Ethan Porcaro
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
