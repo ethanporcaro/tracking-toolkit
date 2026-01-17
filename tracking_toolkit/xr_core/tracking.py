@@ -131,8 +131,13 @@ def _insert_action():
     print("OpenXR Converting samples...")
     for time, sample in pose_data:
         for name, pose in sample.items():
-            # Get object for tracker
-            tracker_obj = bpy.data.objects.get(name)
+            # Get the tracker object.
+            tracker_obj = None
+            for tracker in bpy.context.scene.XRContext.trackers:
+                if tracker.name == name:
+                    tracker_obj = tracker.target.object
+                    break
+
             if not tracker_obj:
                 continue
 
