@@ -43,6 +43,12 @@ class ToggleActiveOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def delete_recursive(obj: bpy.types.Object):
+    for child in obj.children:
+        delete_recursive(child)
+    bpy.data.objects.remove(obj, do_unlink=True)
+
+
 class CreateRefsOperator(bpy.types.Operator):
     bl_idname = "id.add_tracker_res"
     bl_label = "Create tracker target references"
@@ -60,8 +66,10 @@ class CreateRefsOperator(bpy.types.Operator):
 
         # Create root
         root_empty = bpy.data.objects.get("XR Root")
+
+        # Delete existing root.
         if root_empty:
-            bpy.data.objects.remove(root_empty)
+            delete_recursive(root_empty)
 
         bpy.ops.object.empty_add(type="PLAIN_AXES", location=(0, 0, 0))
         root_empty = bpy.context.object
