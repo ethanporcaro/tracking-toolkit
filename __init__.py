@@ -4,6 +4,7 @@ import bpy
 
 from .tracking_toolkit import (
     operators,
+    preferences,
     properties,
     ui
 )
@@ -17,6 +18,7 @@ if _needs_reload:
     import importlib
 
     operators = importlib.reload(operators)
+    preferences = importlib.reload(preferences)
     properties = importlib.reload(properties)
     ui = importlib.reload(ui)
     actions = importlib.reload(actions)
@@ -42,6 +44,12 @@ def scene_update_callback(scene: bpy.types.Scene, _):
 
 def register():
     print("Loading Tracking Toolkit...")
+
+    # Prefs
+    bpy.utils.register_class(preferences.ResetNicknamesOperator)
+    bpy.utils.register_class(preferences.CUSTOM_PG_nicknames)
+    bpy.utils.register_class(preferences.Preferences)
+    preferences.initialize_preferences()
 
     # Props
     bpy.utils.register_class(properties.XRTransform)
@@ -90,6 +98,11 @@ def unregister():
     bpy.utils.unregister_class(properties.XRTracker)
     bpy.utils.unregister_class(properties.XRTarget)
     bpy.utils.unregister_class(properties.XRTransform)
+
+    # Prefs
+    bpy.utils.unregister_class(preferences.Preferences)
+    bpy.utils.unregister_class(preferences.CUSTOM_PG_nicknames)
+    bpy.utils.unregister_class(preferences.ResetNicknamesOperator)
 
     # Handlers
     bpy.app.handlers.depsgraph_update_post.clear()

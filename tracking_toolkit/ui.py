@@ -23,7 +23,7 @@ class PANEL_UL_TrackerList(bpy.types.UIList):
             flt_flag,
     ):
         selected_tracker = item
-        layout.prop(selected_tracker, "name", text="", emboss=False, icon_value=icon)
+        layout.prop(selected_tracker, "nickname", text="", emboss=False, icon_value=icon)
 
 
 class RecorderPanel(View3DPanel, bpy.types.Panel):

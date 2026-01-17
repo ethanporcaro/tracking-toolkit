@@ -96,7 +96,7 @@ class CreateRefsOperator(bpy.types.Operator):
 
         for tracker in xr_context.trackers:
             # Create new tracker empty if it doesn't exist
-            tracker_name = tracker.name
+            tracker_name = tracker.nickname
 
             # Delete existing target
             tracker_target = bpy.data.objects.get(tracker_name)

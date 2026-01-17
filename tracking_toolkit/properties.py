@@ -1,5 +1,7 @@
 import bpy
 
+from .. import __package__ as base_package
+
 
 class XRTransform(bpy.types.PropertyGroup):
     location: bpy.props.FloatVectorProperty(name="Location", default=(0, 0, 0))
@@ -12,10 +14,38 @@ class XRTarget(bpy.types.PropertyGroup):
     transform: bpy.props.PointerProperty(type=XRTransform)
 
 
+def tracker_nickname_change(self, _):
+    # Make sure the new names don't conflict
+    if bpy.data.objects.get(self.nickname) or bpy.data.objects.get(f"{self.nickname} Offset"):
+        print("Cannot rename tracker to an existing nickname.")
+        return
+
+    # Set new names if the objects exist.
+
+    tracker_point = bpy.data.objects.get(self.prev_nickname)
+    if tracker_point:
+        tracker_point.name = self.nickname
+
+    tracker_offset = bpy.data.objects.get(f"{self.prev_nickname} Offset")
+    if tracker_offset:
+        tracker_offset.name = f"{self.nickname} Offset"
+
+    # Save to preferences
+
+    preferences = bpy.context.preferences.addons[base_package].preferences
+    for n in preferences.nicknames:
+        if self.name == n.real_name:
+            n.nickname = self.nickname
+
+    # Track this new nickname as the next previous one.
+    self.prev_nickname = self.nickname
+
+
 class XRTracker(bpy.types.PropertyGroup):
-    index: bpy.props.IntProperty(name="OpenXR name")
+    index: bpy.props.IntProperty(name="Tracker index")
     name: bpy.props.StringProperty(name="Tracker name")
-    type: bpy.props.StringProperty(name="Tracker type")
+    nickname: bpy.props.StringProperty(name="Tracker nickname", update=tracker_nickname_change)
+    prev_nickname: bpy.props.StringProperty()
 
     target: bpy.props.PointerProperty(type=XRTarget)
     offset: bpy.props.PointerProperty(type=XRTarget)

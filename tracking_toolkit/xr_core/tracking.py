@@ -7,13 +7,14 @@ from bpy_extras import anim_utils
 from .actions import vive_role_strings
 from .core import start_xr, tick_xr, stop_xr
 from ..properties import XRContext
+from ... import __package__ as base_package
 
 # Shared variables
 data_buffer = []
 should_stop = False
 
 
-def _update_references(poses):
+def _update_tracker_list(poses):
     xr_context: XRContext = bpy.context.scene.XRContext
     if not xr_context.enabled:
         return
@@ -24,11 +25,22 @@ def _update_references(poses):
     if set(new_trackers) != set(current_trackers):
         print("Updating trackers")
 
+        preferences = bpy.context.preferences.addons[base_package].preferences
+
         xr_context.trackers.clear()
 
         for i, tracker_name in enumerate(poses.keys()):
+            # Check if nickname is in preference already.
+            nickname = tracker_name
+            for n in preferences.nicknames:
+                if tracker_name == n.real_name:
+                    nickname = n.nickname
+
+            # Set up tracker property data.
             tracker = xr_context.trackers.add()
             tracker.name = tracker_name
+            tracker.nickname = nickname
+            tracker.prev_nickname = nickname
             tracker.type = (
                 "tracker" if tracker_name in vive_role_strings else
                 "hmd" if tracker_name == "head" else "controller"
@@ -41,6 +53,7 @@ def _xr_tick_timer():
 
     poses = tick_xr()
     if poses:
+        _update_tracker_list(poses)
         data_buffer.append([datetime.datetime.now(), poses])
 
     return 1.0 / 90  # 90hz
@@ -73,10 +86,18 @@ def _apply_poses():
     if not pose_data:
         return
 
+    trackers = bpy.context.scene.XRContext.trackers
+
     for pose_name in pose_data.keys():
         pose = pose_data[pose_name]
 
-        tracker_obj = bpy.data.objects.get(pose_name)
+        # Get the tracker object.
+        tracker_obj = None
+        for tracker in trackers:
+            if tracker.name == pose_name:
+                tracker_obj = tracker.target.object
+                break
+
         if not tracker_obj:
             continue
 
