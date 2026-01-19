@@ -1,6 +1,7 @@
 import ctypes
 import time
 
+import bpy
 import bpy_extras
 import glfw
 import gpu
@@ -56,6 +57,12 @@ def start_xr():
         session_create_info=xr.SessionCreateInfo()  # We need to reinitialize the default parameter.
     )
     context.__enter__()
+
+    # Save the runtime's name.
+    properties = xr.get_instance_properties(context.instance)
+    runtime_name = properties.runtime_name.decode()
+    bpy.context.scene.XRContext.runtime = runtime_name
+    print(f"Using {runtime_name} as OpenXR runtime.")
 
     # Setup actions
     action_data = default_action_data.copy()

@@ -69,5 +69,6 @@ class XRContext(bpy.types.PropertyGroup):
 
     trackers: bpy.props.CollectionProperty(type=XRTracker)
     selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0, update=selected_tracker_change_callback)
+    runtime: bpy.props.StringProperty(name="OpenXR runtime name", default="Unknown")
 
     record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)

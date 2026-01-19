@@ -37,8 +37,6 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         layout = self.layout
         xr_context: XRContext = context.scene.XRContext
 
-        layout.label(text="Tracking Toolkit Recorder")
-
         # Toggle active button
         # It's super annoying to have Blender not save the state of this button on save, so we just label it funny
         activate_label = "Disconnect/Reset OpenXR" if xr_context.enabled else "Start/Connect OpenXR"
@@ -58,6 +56,15 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
             rows=len(xr_context.trackers),
             type="DEFAULT"
         )
+
+        layout.label(text="Headset must be awake to find trackers.")
+
+        # SteamVR specific warnings.
+        if xr_context.runtime == "SteamVR/OpenXR":
+            # Some users will just be using trackers and not wearing the headset.
+            # If this happens, the XR state won't become XR_FOCUSED, and we won't get data.
+            # In the future, we could somehow check if it's disabled based on tracker movement.
+            layout.label(text="Ensure 'Pause VR when headset is idle' is disabled in SteamVR.")
 
         # Create empties
         layout.operator(CreateRefsOperator.bl_idname, text="Create References")
