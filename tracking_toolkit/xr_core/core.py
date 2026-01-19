@@ -2,10 +2,12 @@ import ctypes
 import time
 
 import bpy_extras
+import glfw
+import gpu
 import mathutils
 import xr
 from xr.utils.gl import ContextObject
-from xr.utils.gl.glfw_util import GLFWOffscreenContextProvider
+from xr.utils.gl.glfw_util import GLFWSharedOffscreenContextProvider, GLFWOffscreenContextProvider
 
 from .actions import default_action_data, vive_tracker_action_data
 
@@ -41,10 +43,17 @@ def start_xr():
         enabled_extensions.append(xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME)
 
     global context
+
+    # Avoid conflicting with Blender's OpenGL.
+    if gpu.platform.backend_type_get() == "OPENGL":
+        provider = GLFWSharedOffscreenContextProvider(glfw.get_current_context())
+    else:
+        provider = GLFWOffscreenContextProvider()
+
     context = ContextObject(
-            context_provider=GLFWOffscreenContextProvider(),
-            instance_create_info=xr.InstanceCreateInfo(enabled_extension_names=enabled_extensions),
-            session_create_info=xr.SessionCreateInfo()  # We need to reinitialize the default parameter.
+        context_provider=provider,
+        instance_create_info=xr.InstanceCreateInfo(enabled_extension_names=enabled_extensions),
+        session_create_info=xr.SessionCreateInfo()  # We need to reinitialize the default parameter.
     )
     context.__enter__()
 
