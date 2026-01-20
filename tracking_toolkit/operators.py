@@ -1,6 +1,8 @@
 import os
 
 import bpy
+import bpy_extras
+from mathutils import Vector
 
 from .properties import XRContext
 from .xr_core.tracking import start_recording, stop_recording, start_preview, stop_preview
@@ -49,132 +51,198 @@ def delete_recursive(obj: bpy.types.Object):
     bpy.data.objects.remove(obj, do_unlink=True)
 
 
+def select_obj(target_obj: bpy.types.Object):
+    bpy.ops.object.select_all(action="DESELECT")
+    target_obj.select_set(True)
+    bpy.context.view_layer.objects.active = target_obj
+
+
 class CreateRefsOperator(bpy.types.Operator):
     bl_idname = "id.add_tracker_res"
     bl_label = "Create tracker target references"
     bl_options = {"UNDO"}
+
+    def _ensure_widgets(self) -> tuple[bpy.types.Object, bpy.types.Object]:
+        """
+        Ensure custom shapes exist for tracker references.
+        :returns: Tuple of (tracker_object, offset_object).
+        """
+
+        widget_collection = bpy.data.collections.get("TTK Widgets")
+        if not widget_collection:
+            widget_collection = bpy.data.collections.new(name="TTK Widgets")
+            bpy.context.scene.collection.children.link(widget_collection)
+
+        # Import shapes.
+
+        assets_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../assets")
+        tracker_model_path = os.path.join(assets_path, "track-point.obj")
+        offset_model_path = os.path.join(assets_path, "track-point-offset.obj")
+
+        tracker_obj = bpy.data.objects.get("TTK Tracker")
+        offset_obj = bpy.data.objects.get("TTK Offset")
+
+        if not tracker_obj:
+            bpy.ops.wm.obj_import(filepath=tracker_model_path)
+            tracker_obj = bpy.context.object
+            tracker_obj.name = "TTK Tracker"
+
+            tracker_obj.show_name = True
+            tracker_obj.hide_render = True
+            tracker_obj.show_wire = True
+            tracker_obj.color = (1.0, 0.0, 0.0, 1.0)  # Red.
+
+            bpy.context.collection.objects.unlink(tracker_obj)
+            widget_collection.objects.link(tracker_obj)
+
+        if not offset_obj:
+            bpy.ops.wm.obj_import(filepath=offset_model_path)
+            offset_obj = bpy.context.object
+            offset_obj.name = "TTK Offset"
+
+            offset_obj.hide_render = True
+            offset_obj.show_wire = True
+            offset_obj.color = (0.0, 1.0, 0.0, 1.0)  # Green.
+
+            bpy.context.collection.objects.unlink(offset_obj)
+            widget_collection.objects.link(offset_obj)
+
+        # Default reference transformations
+        tracker_obj.location = (0, 0, 0)
+        tracker_obj.rotation_euler = (0, 0, 0)
+        tracker_obj.scale = (1, 1, 1)
+
+        offset_obj.location = (0, 0, 0)
+        offset_obj.rotation_euler = (0, 0, 0)
+        offset_obj.scale = (1, 1, 1)
+
+        # Enable wireframe color display.
+        bpy.context.space_data.shading.wireframe_color_type = "OBJECT"
+
+        # Hide collection
+        bpy.context.view_layer.layer_collection.children["TTK Widgets"].exclude = True
+
+        return tracker_obj, offset_obj
 
     def execute(self, context):
         xr_context: XRContext = context.scene.XRContext
 
         # Set to object mode while keeping track of the previous one
         prev_obj = bpy.context.object
+        prev_mode = None
         if prev_obj:
             prev_mode = prev_obj.mode
             if prev_mode != "OBJECT":  # Safe against linked library immutability
                 bpy.ops.object.mode_set(mode="OBJECT")
 
-        # Create root
-        root_empty = bpy.data.objects.get("XR Root")
+        # Bone references.
+        if xr_context.use_bones:
+            print("Creating bone references.")
+            tracker_obj, offset_obj = self._ensure_widgets()
 
-        # Delete existing root.
-        if root_empty:
-            delete_recursive(root_empty)
+            arm = bpy.data.objects.get("XR Trackers")
+            if not arm:
+                arm_data = bpy.data.armatures.new("XR Trackers")
+                arm = bpy.data.objects.new("XR Trackers", arm_data)
+                context.scene.collection.objects.link(arm)
 
-        bpy.ops.object.empty_add(type="PLAIN_AXES", location=(0, 0, 0))
-        root_empty = bpy.context.object
-        root_empty.name = "XR Root"
-        root_empty.empty_display_size = 0.1
+            select_obj(arm)
+            bpy.ops.object.mode_set(mode="EDIT")
 
-        # Import models
+            def ensure_bone(name: str):
+                edit_bones = arm.data.edit_bones
+                _bone = edit_bones.get(name)
+                if not _bone:
+                    _bone = edit_bones.new(name)
+                _bone.head = Vector((0, 0, 0))
+                _bone.tail = Vector((0, 0, 1))
+                return _bone
 
-        # Get model paths
-        assets_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../assets")
-        tracker_model_path = os.path.join(assets_path, "track-point.obj")
-        offset_model_path = os.path.join(assets_path, "track-point-offset.obj")
+            # Root bone.
+            root = ensure_bone("root")
+            root.tail = Vector((0, 0, 0.2))
 
-        bpy.ops.wm.obj_import(filepath=tracker_model_path)
-        tracker_model = bpy.context.object
+            # Create bones for each tracker.
+            for tracker in xr_context.trackers:
+                tracker_name = tracker.nickname
 
-        bpy.ops.wm.obj_import(filepath=offset_model_path)
-        tracker_offset_model = bpy.context.object
+                # Create bone.
 
-        # Default reference transformations
-        tracker_model.location = (0, 0, 0)
-        tracker_model.rotation_euler = (0, 0, 0)
+                bpy.ops.object.mode_set(mode="EDIT")
 
-        tracker_offset_model.location = (0, 0, 0)
-        tracker_offset_model.rotation_euler = (0, 0, 0)
+                tracker = ensure_bone(tracker_name)
+                tracker.parent = root
+                offset = ensure_bone(f"{tracker_name} Offset")
+                offset.parent = tracker
 
-        # Create references
-        def select_model(target_model: bpy.types.Object):
-            bpy.ops.object.select_all(action="DESELECT")
-            target_model.select_set(True)
-            bpy.context.view_layer.objects.active = target_model
+                # Set shape.
 
-        for tracker in xr_context.trackers:
-            # Create new tracker empty if it doesn't exist
-            tracker_name = tracker.nickname
+                bpy.ops.object.mode_set(mode="OBJECT")
+                pose_bones = arm.pose.bones
 
-            # Delete existing target
-            tracker_target = bpy.data.objects.get(tracker_name)
-            if tracker_target:
-                bpy.data.objects.remove(tracker_target)
+                tracker_pose_bone = pose_bones.get(tracker_name)
+                tracker_pose_bone.custom_shape = tracker_obj
+                tracker_pose_bone.color.palette = "THEME01"
 
-            # Create target
-            select_model(tracker_model)
-            bpy.ops.object.duplicate()
+                offset_pose_bone = pose_bones.get(f"{tracker_name} Offset")
+                offset_pose_bone.custom_shape = offset_obj
+                offset_pose_bone.color.palette = "THEME03"
+                offset_pose_bone.custom_shape_wire_width = 3
 
-            tracker_target = bpy.context.object
-            tracker_target.name = tracker_name
+        # Empty references
+        else:
+            print("Creating empty references.")
 
-            tracker_target.show_name = True
-            tracker_target.hide_render = True
-            tracker_target.show_wire = True
-            tracker_target.color = (1.0, 0.0, 0.0, 1.0)  # Red.
+            # Create root
+            root_empty = bpy.data.objects.get("XR Root")
 
-            # Create another empty as an offset.
+            # Delete existing root.
+            if root_empty:
+                delete_recursive(root_empty)
 
-            # Create one if it doesn't exist
-            offset_name = f"{tracker_name} Offset"
+            bpy.ops.object.empty_add(type="PLAIN_AXES", location=(0, 0, 0))
+            root_empty = bpy.context.object
+            root_empty.name = "XR Root"
+            root_empty.empty_display_size = 0.1
 
-            # Delete existing offset.
-            tracker_offset = bpy.data.objects.get(offset_name)
-            if tracker_offset:
-                bpy.data.objects.remove(tracker_offset)
+            def ensure_empty(name):
+                # Create empty.
+                _empty = bpy.data.objects.get(name)
+                if not _empty:
+                    _empty = bpy.data.objects.new(name, None)
+                    context.scene.collection.objects.link(_empty)
 
-            # Create offset.
-            select_model(tracker_offset_model)
-            bpy.ops.object.duplicate()
+                # Set up parenting.
+                _empty.parent = root_empty
 
-            tracker_offset = bpy.context.object
-            tracker_offset.name = offset_name
+                # Set up rotation modes.
+                _empty.rotation_mode = "QUATERNION"
 
-            tracker_offset.hide_render = True
-            tracker_offset.show_wire = True
-            tracker_offset.color = (0.0, 1.0, 0.0, 1.0)  # Green.
+                return _empty
 
-            # Assign objects
-            tracker.target.object = tracker_target
-            tracker.offset.object = tracker_offset
+            # Create empties for each tracker.
+            for tracker in xr_context.trackers:
+                tracker_name = tracker.nickname
 
-            # Set up parenting
-            tracker_target.parent = root_empty
-            tracker_offset.parent = tracker_target
+                tracker_empty = ensure_empty(tracker_name)
+                offset_empty = ensure_empty(f"{tracker_name} Offset")
 
-            # Set up rotation modes
-            tracker_target.rotation_mode = "QUATERNION"
-            tracker_offset.rotation_mode = "QUATERNION"
+                offset_empty.parent = tracker_empty
 
-        # Clean up
-        bpy.data.objects.remove(tracker_model)
-        bpy.data.objects.remove(tracker_offset_model)
+                # Assign objects
+                tracker.target.object = tracker_empty
+                tracker.offset.object = offset_empty
 
-        # Restore previous selection
+        # Restore the previous selection and mode.
         try:
             if prev_obj:
                 prev_obj.select_set(True)
                 bpy.context.view_layer.objects.active = prev_obj
 
-                # I can't stand warnings, okay?
-                # noinspection PyUnboundLocalVariable
-                if bpy.context.object.mode != prev_mode:  # Safe against linked library immutability
+                if bpy.context.object.mode != prev_mode:  # Safe against linked library immutability.
                     bpy.ops.object.mode_set(mode=prev_mode)
         except ReferenceError:
             pass
-
-        # Enable wireframe color display.
-        context.space_data.shading.wireframe_color_type = "OBJECT"
 
         print("Done")
         return {"FINISHED"}

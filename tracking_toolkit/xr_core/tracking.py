@@ -1,6 +1,7 @@
 import datetime
 
 import bpy
+import bpy_extras
 import mathutils
 from bpy_extras import anim_utils
 
@@ -86,22 +87,43 @@ def _apply_poses():
     if not pose_data:
         return
 
-    trackers = bpy.context.scene.XRContext.trackers
+    xr_context = bpy.context.scene.XRContext
+    trackers = xr_context.trackers
 
     for pose_name in pose_data.keys():
         pose = pose_data[pose_name]
 
-        # Get the tracker object.
-        tracker_obj = None
-        for tracker in trackers:
-            if tracker.name == pose_name:
-                tracker_obj = tracker.target.object
-                break
+        # Apply bone transforms.
+        if xr_context.use_bones:
+            armature = bpy.data.objects.get("XR Trackers")
+            if not armature:
+                return
 
-        if not tracker_obj:
-            continue
+            bones = armature.pose.bones
+            for tracker in trackers:
+                if tracker.name != pose_name:
+                    continue
 
-        tracker_obj.matrix_world = pose
+                tracker_bone = bones.get(tracker.name)
+                if not tracker_bone:
+                    continue
+
+                tracker_bone.matrix = pose
+
+        # Apply empty transforms.
+        else:
+
+            # Get the tracker object.
+            tracker_obj = None
+            for tracker in trackers:
+                if tracker.name == pose_name:
+                    tracker_obj = tracker.target.object
+                    break
+
+            if not tracker_obj:
+                continue
+
+            tracker_obj.matrix_world = pose
 
 
 def _pose_vis_timer():
@@ -131,24 +153,20 @@ def _insert_action():
     print("OpenXR Converting samples...")
     for time, sample in pose_data:
         for name, pose in sample.items():
-            # Get the tracker object.
-            tracker_obj = None
+            # Get the tracker.
+            tracker_data = None
             for tracker in bpy.context.scene.XRContext.trackers:
                 if tracker.name == name:
-                    tracker_obj = tracker.target.object
+                    tracker_data = tracker
                     break
 
-            if not tracker_obj:
+            if not tracker_data:
                 continue
-
-            # Create animation data if it doesn't exist
-            if tracker_obj.animation_data is None:
-                tracker_obj.animation_data_create()
 
             # Initialize data structure for this object if it's the first time we see it.
             if name not in animation_data:
                 animation_data[name] = {
-                    "obj": tracker_obj,
+                    "tracker": tracker_data,
                     "frames": [],
                     "locs": [],
                     "rots": [],
@@ -159,7 +177,15 @@ def _insert_action():
             time_delta = time - pose_data[0][0]
             frame = start_frame + time_delta.total_seconds() * framerate
 
-            # Decompose the matrix and append data
+            # Inverse calculation from Blender space back to OpenXR space.
+            # I don't quite know why this is needed, but it has to do with the way bone transformations are handled.
+            if xr_context.use_bones:
+                mat_world = bpy_extras.io_utils.axis_conversion(
+                    "-Z", "Y", "Y", "Z"
+                ).to_4x4().inverted()
+                pose = mat_world @ pose
+
+            # Decompose the matrix and append data.
             loc, rot, scale = pose.decompose()
 
             data = animation_data[name]
@@ -173,24 +199,44 @@ def _insert_action():
     for tracker_name, data in animation_data.items():
         print(">", tracker_name)
 
-        tracker_obj = data["obj"]
+        tracker = data["tracker"]
         num_keys = len(data["frames"])
 
-        # Create animation data and action
-        if not tracker_obj.animation_data:
-            tracker_obj.animation_data_create()
+        # If using bone trackers.
+        if xr_context.use_bones:
+            animated_obj = bpy.data.objects.get("XR Trackers")
 
-        action = tracker_obj.animation_data.action
+        # If using empty references:
+        else:
+            animated_obj = tracker.target.object
+
+        if not animated_obj:
+            continue  # TODO: Error
+
+        # Create animation data and action
+        if not animated_obj.animation_data:
+            animated_obj.animation_data_create()
+
+        action = animated_obj.animation_data.action
         if not action:
-            action = bpy.data.actions.new(name=f"{tracker_obj.name}_Action")
-            tracker_obj.animation_data.action = action
+            action = bpy.data.actions.new(name=f"{animated_obj.name}_Action")
+            animated_obj.animation_data.action = action
 
         # Map the F-Curve data_path and array_index to our collected data.
-        fcurve_props = [
-            ("location", 3, data["locs"]),
-            ("rotation_quaternion", 4, data["rots"]),
-            ("scale", 3, data["scales"])
-        ]
+        if xr_context.use_bones:
+            data_path_prefix = f'pose.bones["{tracker.nickname}"]'
+            fcurve_props = [
+                (f"{data_path_prefix}.location", 3, data["locs"]),
+                (f"{data_path_prefix}.rotation_quaternion", 4, data["rots"]),
+                (f"{data_path_prefix}.scale", 3, data["scales"])
+            ]
+
+        else:
+            fcurve_props = [
+                ("location", 3, data["locs"]),
+                ("rotation_quaternion", 4, data["rots"]),
+                ("scale", 3, data["scales"])
+            ]
 
         for data_path, num_components, values in fcurve_props:
             for i in range(num_components):
@@ -227,10 +273,10 @@ def _insert_action():
                 # Update the fcurve to apply changes
                 fcurve.update()
 
-        # Select first action slot
-        # Otherwise, the new keyframes will not show
+        # Select the first action slot.
+        # Otherwise, the new keyframes will not show.
         action_slot = action.slots[0]
-        tracker_obj.animation_data.action_slot = action_slot
+        animated_obj.animation_data.action_slot = action_slot
 
     print("Done")
 

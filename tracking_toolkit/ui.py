@@ -67,6 +67,7 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
             layout.label(text="Ensure 'Pause VR when headset is idle' is disabled in SteamVR.")
 
         # Create empties
+        layout.prop(data=xr_context, property="use_bones", text="Use Bones For Trackers")
         layout.operator(CreateRefsOperator.bl_idname, text="Create References")
 
         # Show the rest if OpenXr is running
