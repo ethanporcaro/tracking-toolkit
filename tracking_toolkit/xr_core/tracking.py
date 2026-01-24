@@ -104,7 +104,7 @@ def _apply_poses():
                 if tracker.name != pose_name:
                     continue
 
-                tracker_bone = bones.get(tracker.name)
+                tracker_bone = bones.get(tracker.nickname)
                 if not tracker_bone:
                     continue
 

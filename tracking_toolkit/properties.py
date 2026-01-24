@@ -22,13 +22,26 @@ def tracker_nickname_change(self, _):
 
     # Set new names if the objects exist.
 
-    tracker_point = bpy.data.objects.get(self.prev_nickname)
-    if tracker_point:
-        tracker_point.name = self.nickname
+    if bpy.context.scene.XRContext.use_bones:
+        armature = bpy.data.objects.get("XR Trackers")
+        bones = armature.pose.bones
 
-    tracker_offset = bpy.data.objects.get(f"{self.prev_nickname} Offset")
-    if tracker_offset:
-        tracker_offset.name = f"{self.nickname} Offset"
+        tracker_point = bones.get(self.prev_nickname)
+        if tracker_point:
+            tracker_point.name = self.nickname
+
+        tracker_offset = bones.get(f"{self.prev_nickname} Offset")
+        if tracker_offset:
+            tracker_offset.name = f"{self.nickname} Offset"
+
+    else:
+        tracker_point = bpy.data.objects.get(self.prev_nickname)
+        if tracker_point:
+            tracker_point.name = self.nickname
+
+        tracker_offset = bpy.data.objects.get(f"{self.prev_nickname} Offset")
+        if tracker_offset:
+            tracker_offset.name = f"{self.nickname} Offset"
 
     # Save to preferences
 
