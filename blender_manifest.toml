@@ -8,8 +8,8 @@ maintainer = "Ethan Porcaro <ethan@varrett.com>"
 tags = ["Animation", "Tracking"]
 
 type = "add-on"
-blender_version_min = "4.2.0"
-platforms = ["windows-x64"]  # Technically, Linux works, but it's untested.
+blender_version_min = "5.0.0"
+platforms = ["windows-x64"]  # Technically, Linux could work, but it's untested.
 
 license = [
     "SPDX:GPL-3.0-or-later",
@@ -37,4 +37,4 @@ paths_exclude_pattern = [
 ]
 
 [permissions]
-files = "Load controller and tracker models"
+files = "Load custom shapes for tracker models"

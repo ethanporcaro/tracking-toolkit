@@ -13,9 +13,9 @@
       "license": [
         "SPDX:GPL-3.0-or-later"
       ],
-      "blender_version_min": "4.2.0",
+      "blender_version_min": "5.0.0",
       "permissions": {
-        "files": "Load controller and tracker models"
+        "files": "Load custom shapes for tracker models"
       },
       "tags": [
         "Animation",
