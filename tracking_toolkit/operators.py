@@ -41,7 +41,6 @@ class ToggleActiveOperator(bpy.types.Operator):
         else:
             start_preview()
 
-        xr_context.enabled = not xr_context.enabled
         return {"FINISHED"}
 
 

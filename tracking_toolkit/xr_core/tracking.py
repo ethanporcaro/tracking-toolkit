@@ -297,6 +297,7 @@ def stop_recording():
 def start_preview():
     _clear_buffer()
     start_xr()
+    bpy.context.scene.XRContext.enabled = True
 
     if not bpy.app.timers.is_registered(_xr_tick_timer):
         bpy.app.timers.register(_xr_tick_timer)
