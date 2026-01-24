@@ -316,5 +316,6 @@ def stop_preview():
 
     stop_xr()
     _clear_buffer()
+    bpy.context.scene.XRContext.enabled = False
 
     print("OpenXR Preview Stopped")

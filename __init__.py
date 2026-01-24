@@ -28,7 +28,11 @@ if _needs_reload:
     print("Tracking Toolkit Reloaded")
 
 
+@bpy.app.handlers.persistent
 def scene_update_callback(scene: bpy.types.Scene, _):
+    """
+    When a tracker object is selected in the scene, make it active in the list too.
+    """
     selected = [obj for obj in scene.objects if obj.select_get()]
     if not selected:
         return
@@ -40,6 +44,14 @@ def scene_update_callback(scene: bpy.types.Scene, _):
         if tracker.target.object and (tracker.target.object.name == active or tracker.offset.object.name == active):
             if xr_context.selected_tracker != tracker.index:
                 xr_context.selected_tracker = tracker.index
+
+
+@bpy.app.handlers.persistent
+def load_post_callback(_):
+    """
+    Stop XR whenever a new file is loaded.
+    """
+    tracking.stop_preview()
 
 
 def register():
@@ -70,8 +82,10 @@ def register():
     bpy.utils.register_class(ui.RecorderPanel)
 
     # Handlers
-    bpy.app.handlers.depsgraph_update_post.clear()
-    bpy.app.handlers.depsgraph_update_post.append(scene_update_callback)
+    if scene_update_callback not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.append(scene_update_callback)
+    if load_post_callback not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.load_post.append(load_post_callback)
 
     print("Loaded Tracking Toolkit")
 
@@ -105,7 +119,10 @@ def unregister():
     bpy.utils.unregister_class(preferences.ResetNicknamesOperator)
 
     # Handlers
-    bpy.app.handlers.depsgraph_update_post.clear()
+    if scene_update_callback in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(scene_update_callback)
+    if load_post_callback in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(load_post_callback)
 
     print("Unloaded Tracking Toolkit")
 

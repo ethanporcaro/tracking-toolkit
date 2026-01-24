@@ -64,8 +64,8 @@ def selected_tracker_change_callback(self: "XRContext", context):
 
 
 class XRContext(bpy.types.PropertyGroup):
-    enabled: bpy.props.BoolProperty(name="OpenXR active", default=False)
-    recording: bpy.props.BoolProperty(name="OpenXR recording", default=False)
+    enabled: bpy.props.BoolProperty(name="OpenXR active", default=False, options={"SKIP_SAVE"})
+    recording: bpy.props.BoolProperty(name="OpenXR recording", default=False, options={"SKIP_SAVE"})
     use_bones: bpy.props.BoolProperty(name="Use Bone References", default=True)
 
     trackers: bpy.props.CollectionProperty(type=XRTracker)
