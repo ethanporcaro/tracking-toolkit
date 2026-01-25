@@ -125,6 +125,11 @@ class CreateRefsOperator(bpy.types.Operator):
     def execute(self, context):
         xr_context: XRContext = context.scene.XRContext
 
+        # Temporarily disable XR.
+        should_reenable = xr_context.enabled
+        if xr_context.enabled:
+            stop_preview()
+
         # Set to object mode while keeping track of the previous one
         prev_obj = bpy.context.object
         prev_mode = None
@@ -273,6 +278,9 @@ class CreateRefsOperator(bpy.types.Operator):
                     bpy.ops.object.mode_set(mode=prev_mode)
         except ReferenceError:
             pass
+
+        if should_reenable:
+            start_preview()
 
         print("Done")
         return {"FINISHED"}
