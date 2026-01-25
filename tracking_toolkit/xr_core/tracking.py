@@ -144,7 +144,6 @@ def _insert_action():
 
     # Frame and conversion math
     framerate = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
-    start_frame = xr_context.record_start_frame
 
     # Create object to store processed animation data
     animation_data = {}
@@ -175,7 +174,7 @@ def _insert_action():
 
             # Calculate frame number
             time_delta = time - pose_data[0][0]
-            frame = start_frame + time_delta.total_seconds() * framerate
+            frame = time_delta.total_seconds() * framerate
 
             # Inverse calculation from Blender space back to OpenXR space.
             # I don't quite know why this is needed, but it has to do with the way bone transformations are handled.
@@ -196,6 +195,21 @@ def _insert_action():
 
     # Now insert or replace the data
     print("OpenXR Inserting data...")
+
+    start_time: datetime.datetime = pose_data[0][0]
+    time_string = start_time.strftime("%Y/%m/%d_%H:%M:%S")
+
+    # If we are using bones, and an action exists, push it onto a new strip.
+    armature = bpy.data.objects.get("XR Trackers")
+    action = None
+    if armature and armature.animation_data:
+        action = armature.animation_data.action
+    if xr_context.use_bones and action:
+        track = armature.animation_data.nla_tracks.new()
+        track.name = action.name
+        track.strips.new(action.name, int(action.frame_range[0]), action)
+        track.mute = True
+
     for tracker_name, data in animation_data.items():
         print(">", tracker_name)
 
@@ -218,8 +232,20 @@ def _insert_action():
             animated_obj.animation_data_create()
 
         action = animated_obj.animation_data.action
-        if not action:
-            action = bpy.data.actions.new(name=f"{animated_obj.name}_Action")
+
+        # If an action exists, push it onto a strip and disable it.
+        # Only do this here if we are using empties, since this is in a loop.
+        if action:
+            if not xr_context.use_bones:
+                track = animated_obj.animation_data.nla_tracks.new()
+                track.name = action.name
+                track.strips.new(action.name, int(action.frame_range[0]), action)
+                track.mute = True
+            action.name = f"{time_string}-{animated_obj.name}"
+
+        # Otherwise, create a new action.
+        else:
+            action = bpy.data.actions.new(name=f"{time_string}-{animated_obj.name}")
             animated_obj.animation_data.action = action
 
         # Map the F-Curve data_path and array_index to our collected data.
