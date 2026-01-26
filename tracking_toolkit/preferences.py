@@ -36,6 +36,9 @@ class CUSTOM_PG_nicknames(bpy.types.PropertyGroup):
 class Preferences(bpy.types.AddonPreferences):
     bl_idname = base_package
 
+    record_at_scene_fps: bpy.props.BoolProperty(default=True)
+    record_custom_fps: bpy.props.IntProperty(default=24, min=1, max=120, soft_max=90)
+
     nicknames: bpy.props.CollectionProperty(
         name="Default Tracker Nicknames",
         type=CUSTOM_PG_nicknames
@@ -44,9 +47,21 @@ class Preferences(bpy.types.AddonPreferences):
     def draw(self, _):
         layout = self.layout
 
+        layout.label(text="Recording Options")
+
+        layout.prop(self, "record_at_scene_fps", text="Record at Scene FPS")
+        if not self.record_at_scene_fps:
+            layout.prop(self, "record_custom_fps", text="Custom FPS")
+            layout.label(text="Warning: Using custom FPS. Subframes may be created.")
+        layout.label(text="High scene or custom FPS can cause performance issues.")
+
+        layout.separator_spacer()
+
+        # Tracker nickname options.
+
         layout.label(text="Tracker Nicknames")
 
         for n in self.nicknames:
             layout.prop(n, "nickname", text=n.real_name)
 
-        layout.operator(ResetNicknamesOperator.bl_idname, text="Reset All")
+        layout.operator(ResetNicknamesOperator.bl_idname, text="Reset Nicknames")

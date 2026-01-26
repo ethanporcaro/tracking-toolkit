@@ -57,7 +57,16 @@ def _xr_tick_timer():
         _update_tracker_list(poses)
         data_buffer.append([datetime.datetime.now(), poses])
 
-    return 1.0 / 90  # 90hz
+    # Calculate recording FPS.
+    # It may be a good idea to move this math outside the timer.
+
+    preferences = bpy.context.preferences.addons[base_package].preferences
+    if preferences.record_at_scene_fps:
+        framerate = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+    else:
+        framerate = preferences.record_custom_fps
+
+    return 1.0 / framerate
 
 
 def _clear_buffer():
@@ -133,6 +142,7 @@ def _pose_vis_timer():
 
 def _insert_action():
     xr_context = bpy.context.scene.XRContext
+    preferences = bpy.context.preferences.addons[base_package].preferences
 
     pose_data = _get_buffer()
     num_samples = len(pose_data)
@@ -142,15 +152,16 @@ def _insert_action():
         print(f"OpenXR Found no samples to process")
         return
 
-    # Frame and conversion math
-    framerate = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+    # Calculate recording FPS.
+    scene_fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+    record_fps = scene_fps if preferences.record_at_scene_fps else preferences.record_custom_fps
 
     # Create object to store processed animation data
     animation_data = {}
 
     # Process samples into a large buffer, so we can efficiently apply it later
     print("OpenXR Converting samples...")
-    for time, sample in pose_data:
+    for i, (_, sample) in enumerate(pose_data):
         for name, pose in sample.items():
             # Get the tracker.
             tracker_data = None
@@ -173,9 +184,7 @@ def _insert_action():
                 }
 
             # Calculate frame number
-            time_delta = time - pose_data[0][0]
-            frame = time_delta.total_seconds() * framerate
-
+            frame = i * (scene_fps/record_fps)
             # Inverse calculation from Blender space back to OpenXR space.
             # I don't quite know why this is needed, but it has to do with the way bone transformations are handled.
             if xr_context.use_bones:
