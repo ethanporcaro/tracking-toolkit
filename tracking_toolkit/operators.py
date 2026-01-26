@@ -173,10 +173,14 @@ class CreateRefsOperator(bpy.types.Operator):
 
                 bpy.ops.object.mode_set(mode="EDIT")
 
-                tracker = ensure_bone(tracker_name)
-                tracker.parent = root
-                offset = ensure_bone(f"{tracker_name} Offset")
-                offset.parent = root
+                # Get root bode again in case the old reference broke during mode change.
+                root = arm.data.edit_bones.get("root")
+
+                tracker_bone = ensure_bone(tracker_name)
+                tracker_bone.parent = root
+
+                offset_bone = ensure_bone(f"{tracker_name} Offset")
+                offset_bone.parent = root
 
                 # Set shape.
 
