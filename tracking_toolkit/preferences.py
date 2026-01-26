@@ -1,4 +1,5 @@
 import bpy
+import re
 
 from .xr_core.actions import vive_role_strings
 from .. import __package__ as base_package
@@ -11,9 +12,14 @@ def initialize_preferences():
         if role_string in [n.real_name for n in preferences.nicknames]:
             continue
 
+        # Reformat left/right nicknames to work better with bone symmetry.
+        new_nn = role_string
+        if re.match(f"(l(eft)?)|(r(ight)?)_", new_nn):
+            new_nn = re.sub(r"([lr])((eft)|(ight))?_(.+)", r"\5.\1", new_nn)
+
         nickname = preferences.nicknames.add()
         nickname.real_name = role_string
-        nickname.nickname = role_string
+        nickname.nickname = new_nn
 
 
 class ResetNicknamesOperator(bpy.types.Operator):
