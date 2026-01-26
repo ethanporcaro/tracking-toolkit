@@ -76,6 +76,16 @@ def selected_tracker_change_callback(self: "XRContext", context):
     context.view_layer.objects.active = obj
 
 
+def get_timer_items():
+    return [
+        ("0", "None", "No timer"),
+        ("5", "5s", "5 seconds"),
+        ("10", "10s", "10 seconds"),
+        ("15", "15s", "15 seconds"),
+        ("CUSTOM", "Custom", "Custom duration"),
+    ]
+
+
 class XRContext(bpy.types.PropertyGroup):
     enabled: bpy.props.BoolProperty(name="OpenXR active", default=False, options={"SKIP_SAVE"})
     recording: bpy.props.BoolProperty(name="OpenXR recording", default=False, options={"SKIP_SAVE"})
@@ -85,4 +95,6 @@ class XRContext(bpy.types.PropertyGroup):
     selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0, update=selected_tracker_change_callback)
     runtime: bpy.props.StringProperty(name="OpenXR runtime name", default="Unknown")
 
-    record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)
+    timer: bpy.props.EnumProperty(name="Time length", items=get_timer_items(), default="0")
+    timer_custom: bpy.props.IntProperty(name="Custom time length", default=15, min=0, max=60, step=5)
+    countdown: bpy.props.IntProperty(name="Countdown value", options={"SKIP_SAVE"})

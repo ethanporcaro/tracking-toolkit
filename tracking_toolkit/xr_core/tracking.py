@@ -316,13 +316,57 @@ def _insert_action():
     print("Done")
 
 
-def start_recording():
-    _clear_buffer()
+def _xr_countdown_timer():
+    xr_context: XRContext = bpy.context.scene.XRContext
 
-    print("OpenXR Recording Started")
+    if not xr_context.recording:
+        print("OpenXR Countdown Canceled")
+        return None
+
+    xr_context.countdown -= 1
+
+    # Update UI to show status.
+    for area in bpy.context.screen.areas:
+        area.tag_redraw()
+
+    # Clear buffer, so the recorded data starts now.
+    # Use < 1 in case it somehow goes negative.
+    if xr_context.countdown < 1:
+        print("OpenXR Recording Started")
+        _clear_buffer()
+        return None
+
+    print(f"OpenXR recording starting in {xr_context.countdown}s")
+    return 1
+
+
+def start_recording():
+    xr_context: XRContext = bpy.context.scene.XRContext
+
+    # Get timer delay.
+    delay_val = xr_context.timer
+    if delay_val == "CUSTOM":
+        delay = xr_context.timer_custom
+    else:
+        delay = int(delay_val)
+
+    xr_context.countdown = delay + 1  # Add one since the value is decremented at the start of the timer.
+
+    if not bpy.app.timers.is_registered(_xr_countdown_timer):
+        bpy.app.timers.register(_xr_countdown_timer)
+
+    xr_context.recording = True
+    print("OpenXR Countdown Started")
 
 
 def stop_recording():
+    xr_context: XRContext = bpy.context.scene.XRContext
+
+    xr_context.recording = False
+
+    if xr_context.countdown > 0:
+        return  # Recording was probably canceled.
+
     _insert_action()
     _clear_buffer()
 
@@ -344,6 +388,9 @@ def start_preview():
 
 
 def stop_preview():
+    if bpy.app.timers.is_registered(_xr_tick_timer):
+        bpy.app.timers.unregister(_xr_tick_timer)
+
     if bpy.app.timers.is_registered(_pose_vis_timer):
         bpy.app.timers.unregister(_pose_vis_timer)
 
@@ -352,6 +399,8 @@ def stop_preview():
 
     stop_xr()
     _clear_buffer()
+
     bpy.context.scene.XRContext.enabled = False
+    bpy.context.scene.XRContext.recording = False
 
     print("OpenXR Preview Stopped")

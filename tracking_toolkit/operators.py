@@ -18,12 +18,10 @@ class ToggleRecordOperator(bpy.types.Operator):
         if not xr_context.enabled:
             return {"FINISHED"}
 
-        xr_context.recording = not xr_context.recording
         if xr_context.recording:
-            xr_context.record_start_frame = context.scene.frame_current
-            start_recording()
-        else:
             stop_recording()
+        else:
+            start_recording()
 
         return {"FINISHED"}
 

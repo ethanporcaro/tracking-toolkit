@@ -77,24 +77,31 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         # Recording
         layout.label(text="Recording")
 
+        is_delaying = xr_context.countdown > 0
+
         # Make button big
         record_btn_row = layout.row()
         record_btn_row.scale_y = 2
-        record_btn_row.alert = xr_context.recording
+        record_btn_row.alert = xr_context.recording and not is_delaying
 
         start_record_label = "Start Recording"
         stop_record_label = "Stop Recording"
         active_record_label = stop_record_label if xr_context.recording else start_record_label
 
+        if xr_context.recording and is_delaying:
+            active_record_label = f"Starting in {xr_context.countdown}s..."
+
         start_record_icon = "RECORD_OFF"
         stop_record_icon = "RECORD_ON"
         active_record_icon = stop_record_icon if xr_context.recording else start_record_icon
 
-        # I hate warnings (for icon type checking)
-        # noinspection PyTypeChecker
         record_btn_row.operator(
             ToggleRecordOperator.bl_idname,
             text=active_record_label,
             icon=active_record_icon,
             depress=True,
         )
+
+        layout.prop(data=xr_context, property="timer", text="Delay")
+        if xr_context.timer == "CUSTOM":
+            layout.prop(data=xr_context, property="timer_custom", text="Seconds")
