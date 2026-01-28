@@ -145,9 +145,8 @@ def _insert_action():
     preferences = bpy.context.preferences.addons[base_package].preferences
 
     pose_data = _get_buffer()
-    num_samples = len(pose_data)
-    print(f"OpenXR Processing {num_samples} recorded samples")
 
+    num_samples = len(pose_data)
     if num_samples == 0:
         print(f"OpenXR Found no samples to process")
         return
@@ -156,13 +155,56 @@ def _insert_action():
     scene_fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
     record_fps = scene_fps if preferences.record_at_scene_fps else preferences.record_custom_fps
 
-    # Create object to store processed animation data
-    animation_data = {}
+    start_time = pose_data[0][0]
+    end_time = pose_data[-1][0]
+    total_duration = (end_time - start_time).total_seconds()
+    total_frames = round(total_duration * record_fps)
+    source_times = [(t - start_time).total_seconds() for t, _ in pose_data]
 
-    # Process samples into a large buffer, so we can efficiently apply it later
+    # The samples might not be at the correct interval. Here, we go through each frame and linearly interpolate.
+
     print("OpenXR Converting samples...")
-    for i, (_, sample) in enumerate(pose_data):
-        for name, pose in sample.items():
+    print(f"Frames: {total_frames}")
+    print(f"Samples: {len(pose_data)}")
+    print(f"Duration: {total_duration}")
+
+    animation_data = {}
+    current_time = 0
+    frame = 0
+    min_index = 0  # Checkpoint the "closest index" to avoid recalculations.
+
+    while current_time <= total_duration:
+        # Get closest sample.
+
+        closest_idx = None
+        for i in range(min_index, len(source_times)):
+            if source_times[i] >= current_time:
+                closest_idx = i
+                min_index = i
+                break
+
+        if closest_idx is None:
+            break  # We reached the end.
+
+        # Interpolate the poses to be even with the framerate.
+        # This is because the Blender timer might not have gone off at the correct interval.
+
+        # Calculate lerp factor.
+        if closest_idx == 0:
+            prev_sample = pose_data[0][1]
+            next_sample = pose_data[0][1]
+            factor = 0
+        else:
+            prev_time = source_times[closest_idx - 1]
+            next_time = source_times[closest_idx]
+
+            if prev_time != next_time:  # Prevent division by 0.
+                factor = (current_time - prev_time) / (next_time - prev_time)
+
+            prev_sample = pose_data[closest_idx - 1][1]
+            next_sample = pose_data[closest_idx][1]
+
+        for name, next_pose in next_sample.items():
             # Get the tracker.
             tracker_data = None
             for tracker in bpy.context.scene.XRContext.trackers:
@@ -183,18 +225,33 @@ def _insert_action():
                     "scales": []
                 }
 
-            # Calculate frame number
-            frame = i * (scene_fps/record_fps)
+            # Lerp pose.
+
+            if name not in prev_sample:
+                continue
+            prev_pose = prev_sample[name]
+
+            loc0, rot0, sca0 = prev_pose.decompose()
+            loc1, rot1, sca1 = next_pose.decompose()
+
+            loc_final = loc0.lerp(loc1, factor)
+            rot_final = rot0.slerp(rot1, factor)  # Slerp for rotation.
+            sca_final = sca0.lerp(sca1, factor)
+
+            lerp_pose = mathutils.Matrix.LocRotScale(loc_final, rot_final, sca_final)
+
+            # Decompose and add to data structure
+
             # Inverse calculation from Blender space back to OpenXR space.
             # I don't quite know why this is needed, but it has to do with the way bone transformations are handled.
             if xr_context.use_bones:
                 mat_world = bpy_extras.io_utils.axis_conversion(
                     "-Z", "Y", "Y", "Z"
                 ).to_4x4().inverted()
-                pose = mat_world @ pose
+                lerp_pose = mat_world @ lerp_pose
 
             # Decompose the matrix and append data.
-            loc, rot, scale = pose.decompose()
+            loc, rot, scale = lerp_pose.decompose()
 
             data = animation_data[name]
             data["frames"].append(frame)
@@ -202,10 +259,13 @@ def _insert_action():
             data["rots"].extend(rot)
             data["scales"].extend(scale)
 
+        # Increment.
+        current_time += 1 / record_fps
+        frame += 1 * (scene_fps / record_fps)  # Compensate for difference in scene and record fps
+
     # Now insert or replace the data
     print("OpenXR Inserting data...")
 
-    start_time: datetime.datetime = pose_data[0][0]
     time_string = start_time.strftime("%Y/%m/%d_%H:%M:%S")
 
     # If we are using bones, and an action exists, push it onto a new strip.
