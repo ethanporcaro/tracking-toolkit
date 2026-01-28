@@ -24,18 +24,20 @@ def _update_tracker_list(poses):
     new_trackers = poses.keys()
     current_trackers = [tracker.name for tracker in xr_context.trackers]
     if set(new_trackers) != set(current_trackers):
-        print("Updating trackers")
-
         preferences = bpy.context.preferences.addons[base_package].preferences
 
-        xr_context.trackers.clear()
-
         for i, tracker_name in enumerate(poses.keys()):
+            # Don't touch existing.
+            if tracker_name in current_trackers:
+                continue
+
             # Check if nickname is in preference already.
             nickname = tracker_name
             for n in preferences.nicknames:
                 if tracker_name == n.real_name:
                     nickname = n.nickname
+
+            print(f"Adding new tracker: {nickname} ({tracker_name})")
 
             # Set up tracker property data.
             tracker = xr_context.trackers.add()
@@ -434,9 +436,13 @@ def stop_recording():
 
 
 def start_preview():
+    xr_context: XRContext = bpy.context.scene.XRContext
+
+    xr_context.trackers.clear()  # Fresh state. They get updated later.
+
     _clear_buffer()
     start_xr()
-    bpy.context.scene.XRContext.enabled = True
+    xr_context.enabled = True
 
     if not bpy.app.timers.is_registered(_xr_tick_timer):
         bpy.app.timers.register(_xr_tick_timer)
