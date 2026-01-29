@@ -20,8 +20,6 @@ jobs:
       - name: download wheels
         run: |
           pip wheel --no-deps -r requirements.txt -w ./wheels
-          mv ./wheels/glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.p39.p310.p311.p312.p313-none-win_amd64.whl \
-          ./wheels/glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313-none-win_amd64.whl
       - name: package
         run: |
           zip -r ${{ env.ZIP_NAME }} ./* -x "images/*"

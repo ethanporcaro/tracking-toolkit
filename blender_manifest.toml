@@ -18,10 +18,7 @@ license = [
 wheels = [
     "./wheels/pyopenxr-1.1.5301-py3-none-any.whl",
     "./wheels/pyopengl-3.1.10-py3-none-any.whl",
-
-    # This library has a bad wheel format, and the wheel needs to be renamed manually before packaging.
-    # See https://github.com/FlorianRhiem/pyGLFW/issues/88.
-    "./wheels/glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313-none-win_amd64.whl"
+    "./wheels/glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313.py314-none-win_amd64.whl"
 ]
 
 [build]
