@@ -23,7 +23,13 @@ class PANEL_UL_TrackerList(bpy.types.UIList):
             flt_flag,
     ):
         selected_tracker = item
-        layout.prop(selected_tracker, "nickname", text="", emboss=False, icon_value=icon)
+
+        layout.prop(selected_tracker, "nickname", text="", emboss=False, icon="TRACKER")
+
+        if selected_tracker.hidden:
+            layout.prop(item, "hidden", icon="HIDE_ON", icon_only=True, emboss=False)
+        else:
+            layout.prop(item, "hidden", icon="HIDE_OFF", icon_only=True, emboss=False)
 
 
 class RecorderPanel(View3DPanel, bpy.types.Panel):

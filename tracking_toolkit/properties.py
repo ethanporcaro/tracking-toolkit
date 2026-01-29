@@ -54,11 +54,37 @@ def tracker_nickname_change(self, _):
     self.prev_nickname = self.nickname
 
 
+def tracker_visible_change(self, _):
+    # Apply tracker visibility settings.
+
+    if bpy.context.scene.XRContext.use_bones:
+        armature = bpy.data.objects.get("XR Trackers")
+        bones = armature.pose.bones
+
+        tracker_point = bones.get(self.nickname)
+        if tracker_point:
+            tracker_point.hide = self.hidden
+
+        tracker_offset = bones.get(f"{self.nickname} Offset")
+        if tracker_offset:
+            tracker_offset.hide = self.hidden
+
+    else:
+        tracker_point = bpy.data.objects.get(self.nickname)
+        if tracker_point:
+            tracker_point.hide_viewport = self.hidden
+
+        tracker_offset = bpy.data.objects.get(f"{self.nickname} Offset")
+        if tracker_offset:
+            tracker_offset.hide_viewport = self.hidden
+
+
 class XRTracker(bpy.types.PropertyGroup):
     index: bpy.props.IntProperty(name="Tracker index")
     name: bpy.props.StringProperty(name="Tracker name")
     nickname: bpy.props.StringProperty(name="Tracker nickname", update=tracker_nickname_change)
     prev_nickname: bpy.props.StringProperty()
+    hidden: bpy.props.BoolProperty(name="Hidden in viewport", default=False, update=tracker_visible_change)
 
     target: bpy.props.PointerProperty(type=XRTarget)
     offset: bpy.props.PointerProperty(type=XRTarget)
