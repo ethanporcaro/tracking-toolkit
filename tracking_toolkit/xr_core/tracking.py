@@ -123,16 +123,15 @@ def _apply_poses():
 
         # Apply empty transforms.
         else:
-
             # Get the tracker object.
             tracker_obj = None
             for tracker in trackers:
                 if tracker.name == pose_name:
-                    tracker_obj = tracker.target.object
+                    tracker_obj = bpy.data.objects.get(tracker.nickname)
                     break
 
             if not tracker_obj:
-                continue
+                continue  # TODO: Error
 
             tracker_obj.matrix_world = pose
 

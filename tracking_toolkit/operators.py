@@ -232,10 +232,6 @@ class CreateRefsOperator(bpy.types.Operator):
                 tracker_empty.parent = root_empty
                 offset_empty.parent = tracker_empty
 
-                # Assign objects
-                tracker.target.object = tracker_empty
-                tracker.offset.object = offset_empty
-
         # Restore the previous selection and mode.
         try:
             if prev_obj:

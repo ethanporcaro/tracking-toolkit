@@ -32,16 +32,19 @@ if _needs_reload:
 def scene_update_callback(scene: bpy.types.Scene, _):
     """
     When a tracker object is selected in the scene, make it active in the list too.
+    This does not work with bones.
     """
+    xr_context = scene.XRContext
+    if xr_context.use_bones:
+        return
+
     selected = [obj for obj in scene.objects if obj.select_get()]
     if not selected:
         return
 
-    xr_context = scene.XRContext
-
     active = selected[-1].name
     for tracker in xr_context.trackers:
-        if tracker.target.object and (tracker.target.object.name == active or tracker.offset.object.name == active):
+        if tracker.nickname in [active, f"{active} Offset"]:
             if xr_context.selected_tracker != tracker.index:
                 xr_context.selected_tracker = tracker.index
 

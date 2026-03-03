@@ -91,9 +91,16 @@ class XRTracker(bpy.types.PropertyGroup):
 
 
 def selected_tracker_change_callback(self: "XRContext", context):
+    """
+    Select the tracker object in the viewport when the selected tracker changes.
+    This does not work with bones.
+    """
+    if self.use_bones:
+        return
+
     selected_tracker = self.trackers[self.selected_tracker]
 
-    obj = selected_tracker.offset.object
+    obj = bpy.data.objects.get(selected_tracker.nickname)
     if not obj:
         return
 
