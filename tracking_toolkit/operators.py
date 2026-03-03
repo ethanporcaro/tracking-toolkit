@@ -178,7 +178,7 @@ class CreateRefsOperator(bpy.types.Operator):
                 tracker_bone.parent = root
 
                 offset_bone = ensure_bone(f"{tracker_name} Offset")
-                offset_bone.parent = root
+                offset_bone.parent = tracker_bone
 
                 # Set shape.
 
@@ -193,24 +193,6 @@ class CreateRefsOperator(bpy.types.Operator):
                 offset_pose_bone.custom_shape = offset_obj
                 offset_pose_bone.color.palette = "THEME03"
                 offset_pose_bone.custom_shape_wire_width = 3
-
-                # Set up constraints.
-
-                # Clear existing constraints
-                for constraint in offset_pose_bone.constraints:
-                    if constraint.name.startswith("TTK_"):
-                        offset_pose_bone.constraints.remove(constraint)
-
-                constraint_loc = offset_pose_bone.constraints.new("COPY_LOCATION")
-                constraint_loc.name = "TTK_Loc"
-                constraint_loc.target = arm
-                constraint_loc.subtarget = tracker_pose_bone.name
-                constraint_loc.use_offset = True
-
-                constraint_rot = offset_pose_bone.constraints.new("COPY_ROTATION")
-                constraint_rot.name = "TTK_Rot"
-                constraint_rot.target = arm
-                constraint_rot.subtarget = tracker_pose_bone.name
 
         # Empty references
         else:
@@ -235,9 +217,6 @@ class CreateRefsOperator(bpy.types.Operator):
                     _empty = bpy.data.objects.new(name, None)
                     context.scene.collection.objects.link(_empty)
 
-                # Set up parenting.
-                _empty.parent = root_empty
-
                 # Set up rotation modes.
                 _empty.rotation_mode = "QUATERNION"
 
@@ -250,21 +229,8 @@ class CreateRefsOperator(bpy.types.Operator):
                 tracker_empty = ensure_empty(tracker_name)
                 offset_empty = ensure_empty(f"{tracker_name} Offset")
 
-                # Set up constraints.
-
-                # Clear existing constraints
-                for constraint in offset_empty.constraints:
-                    if constraint.name.startswith("TTK_"):
-                        offset_empty.constraints.remove(constraint)
-
-                constraint_loc = offset_empty.constraints.new("COPY_LOCATION")
-                constraint_loc.name = "TTK_Loc"
-                constraint_loc.target = tracker_empty
-                constraint_loc.use_offset = True
-
-                constraint_rot = offset_empty.constraints.new("COPY_ROTATION")
-                constraint_rot.name = "TTK_Rot"
-                constraint_rot.target = tracker_empty
+                tracker_empty.parent = root_empty
+                offset_empty.parent = tracker_empty
 
                 # Assign objects
                 tracker.target.object = tracker_empty
