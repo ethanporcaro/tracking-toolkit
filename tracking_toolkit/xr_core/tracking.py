@@ -270,16 +270,8 @@ def _insert_action():
 
     time_string = start_time.strftime("%Y/%m/%d_%H:%M:%S")
 
-    # If we are using bones, and an action exists, push it onto a new strip.
-    armature = bpy.data.objects.get("XR Trackers")
-    action = None
-    if armature and armature.animation_data:
-        action = armature.animation_data.action
-    if xr_context.use_bones and action:
-        track = armature.animation_data.nla_tracks.new()
-        track.name = action.name
-        track.strips.new(action.name, int(action.frame_range[0]), action)
-        track.mute = True
+    # Keep track of armature creation, so it only happens once in the loop.
+    has_created_armature_action = False
 
     for tracker_name, data in animation_data.items():
         print(">", tracker_name)
@@ -287,37 +279,35 @@ def _insert_action():
         tracker = data["tracker"]
         num_keys = len(data["frames"])
 
-        # If using bone trackers.
         if xr_context.use_bones:
             animated_obj = bpy.data.objects.get("XR Trackers")
-
-        # If using empty references:
         else:
-            animated_obj = tracker.target.object
+            animated_obj = bpy.data.objects.get(tracker.nickname)  # Empty object references.
 
         if not animated_obj:
             continue  # TODO: Error
 
-        # Create animation data and action
+        # Create animation data if unavailable.
         if not animated_obj.animation_data:
             animated_obj.animation_data_create()
 
-        action = animated_obj.animation_data.action
-
-        # If an action exists, push it onto a strip and disable it.
-        # Only do this here if we are using empties, since this is in a loop.
-        if action:
-            if not xr_context.use_bones:
+        # Create new actions.
+        if not xr_context.use_bones or (xr_context.use_bones and not has_created_armature_action):
+            # If an action already exists, push it to a new track and mute it.
+            existing_action = animated_obj.animation_data.action
+            if existing_action:
                 track = animated_obj.animation_data.nla_tracks.new()
-                track.name = action.name
-                track.strips.new(action.name, int(action.frame_range[0]), action)
+                track.name = existing_action.name
+                track.strips.new(existing_action.name, int(existing_action.frame_range[0]), existing_action)
                 track.mute = True
-            action.name = f"{time_string}-{animated_obj.name}"
 
-        # Otherwise, create a new action.
-        else:
+            # Create a new action.
             action = bpy.data.actions.new(name=f"{time_string}-{animated_obj.name}")
             animated_obj.animation_data.action = action
+
+            # If using bones, mark action as created so we don't repeat it next iteration.
+            if xr_context.use_bones:
+                has_created_armature_action = True
 
         # Map the F-Curve data_path and array_index to our collected data.
         if xr_context.use_bones:
