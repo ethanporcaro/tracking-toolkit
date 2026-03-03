@@ -33,6 +33,10 @@ vive_role_strings = [
     "right_elbow",
     "left_knee",
     "right_knee",
+    "left_wrist",  # Rev 3.
+    "right_wrist",  # Rev 3.
+    "left_ankle",  # Rev 3.
+    "right_ankle",  # Rev 3.
     "waist",
     "chest",
     "camera",
