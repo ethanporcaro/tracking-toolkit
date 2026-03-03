@@ -14,7 +14,7 @@ Drag this image onto the Blender interface. If it asks to create a repo, accept,
 
 If you are updating, you can drag the image or check for updates in the Blender preferences.
 
-[<img src="images/drag_prompt.png" width="200px"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fgithub.com%2Fethanporcaro%2Ftracking-toolkit%2Freleases%2Flatest%2Fdownload%2Frepository.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
+[<img src="images/icon.png" width="100px"/>](https://github.com/ethanporcaro/tracking-toolkit/releases/latest/download/tracking_toolkit-latest.zip?repository=https%3A%2F%2Fgithub.com%2Fethanporcaro%2Ftracking-toolkit%2Freleases%2Flatest%2Fdownload%2Frepository.json&blender_version_min=4.2.0&platforms=windows-x64%2clinux-x64)
 
 ### Manual
 
@@ -94,18 +94,26 @@ Location and Rotation are overwritten when OpenXR is connected but can be adjust
 
 ### FAQ
 
-Q: Will my scene animations play during recording?
+**Q:** How many trackers do I need?
 
-A: No. That may change in the future if needed.
+**A:** You only need 1 to get started, but you'll need more for things like full-body motion capture.
+
+**Q:** Can I view my scene in VR?
+
+**A:** No. There are technical limitations that would make this difficult, and there's no current plan to support it.
+
+**Q:** Can I only use Vive Trackers without a headset?
+
+**A:** Yes! Make sure to disable `Pause VR when headset is idle` in the SteamVR video settings. 
+If you have no headset attached at all, you may need to enable the Mock HMD driver.
+
+**Q:** Will my scene animations play during recording?
+
+**A:** No. That may change in the future if needed.
 
 # Credits
+
 **Huge** credits to [shteeve](https://blenderartists.org/u/shteeve) and [toyxyz](https://blenderartists.org/u/toyxyz) at [blenderartists.org](https://blenderartists.org/) for the [research and basis of this extension](https://blenderartists.org/t/openvr-tracker-streaming/1236428).
-
-This code was rewritten by me but shares many design choices, naming, etc. from their prototypes.
-
-Because the [Blender Extensions](https://extensions.blender.org/) platform [requires GPL licenses](https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html) for code, and since I write the actual code in this repo, I feel I have the right to license this repo under the [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
-
-That isn't to say that the aforementioned developers had a **huge** impact on this project, as well as other users in the thread.
 
 Also, thank you to [Christopher Bruns](https://github.com/cmbruns) for the amazing [pyopenxr](https://github.com/cmbruns/pyopenxr) library.
 
@@ -113,7 +121,9 @@ Also, thank you to [Christopher Bruns](https://github.com/cmbruns) for the amazi
 
 This extension is licensed under [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
 
-Logos and images under `/images` are in the [Public Domain (CC0)](https://spdx.org/licenses/CC0-1.0.html).
+Files under `/images` and `/assets` are in the [Public Domain (CC0)](https://spdx.org/licenses/CC0-1.0.html).
+
+Branding files are public domain, but trademark rights are reserved.
 
 ```text
 Copyright (C) 2026 Ethan Porcaro
