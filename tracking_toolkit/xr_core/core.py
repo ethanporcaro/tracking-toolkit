@@ -1,14 +1,12 @@
 import ctypes
+import ctypes.wintypes
 import time
 
 import bpy
 import bpy_extras
-import glfw
-import gpu
 import mathutils
 import xr
 from xr.utils.gl import ContextObject
-from xr.utils.gl.glfw_util import GLFWSharedOffscreenContextProvider, GLFWOffscreenContextProvider
 
 from .actions import default_action_data, vive_tracker_action_data
 
@@ -31,31 +29,74 @@ context: ContextObject | None = None
 spaces = {}
 
 
+def _headless_enter(self):
+    self.instance = xr.create_instance(
+        create_info=self._instance_create_info,
+    )
+    self.system_id = xr.get_system(
+        instance=self.instance,
+        get_info=xr.SystemGetInfo(
+            form_factor=self.form_factor,
+        ),
+    )
+    self._session_create_info.system_id = self.system_id
+    self._session_create_info.next = None
+    self.session = xr.create_session(
+        instance=self.instance,
+        create_info=self._session_create_info,
+    )
+    self.space = xr.create_reference_space(
+        session=self.session,
+        create_info=self._reference_space_create_info
+    )
+    self.default_action_set = xr.create_action_set(
+        instance=self.instance,
+        create_info=xr.ActionSetCreateInfo(
+            action_set_name="default_action_set",
+            localized_action_set_name="Default Action Set",
+            priority=0,
+        ),
+    )
+    self.action_sets.append(self.default_action_set)
+    return self
+
+
 def start_xr():
     print("Starting XR Tracking")
 
     available_extensions = xr.enumerate_instance_extension_properties()
 
-    enabled_extensions = [xr.KHR_OPENGL_ENABLE_EXTENSION_NAME]
+    required_extensions = [
+        xr.MND_HEADLESS_EXTENSION_NAME,
+        xr.KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME
+    ]
+    for ext in required_extensions:
+        if ext not in available_extensions:
+            if ext == xr.MND_HEADLESS_EXTENSION_NAME:
+                raise RuntimeError("Your runtime does not support headless mode. "
+                                   "Consult the user guide for alternatives.")
+
+            raise RuntimeError(f"Extension {ext} not supported.")
+
+    enabled_extensions = required_extensions.copy()
 
     use_vive_trackers = xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME in available_extensions
     if use_vive_trackers:
         print("Using Vive trackers")
         enabled_extensions.append(xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME)
 
+    # Instantiate the headless context.
+
     global context
-
-    # Avoid conflicting with Blender's OpenGL.
-    if gpu.platform.backend_type_get() == "OPENGL":
-        provider = GLFWSharedOffscreenContextProvider(glfw.get_current_context())
-    else:
-        provider = GLFWOffscreenContextProvider()
-
-    context = ContextObject(
-        context_provider=provider,
+    context_obj = ContextObject
+    context_obj.__enter__ = _headless_enter
+    # noinspection PyTypeChecker
+    context = context_obj(
+        context_provider=None,
         instance_create_info=xr.InstanceCreateInfo(enabled_extension_names=enabled_extensions),
         session_create_info=xr.SessionCreateInfo()  # We need to reinitialize the default parameter.
     )
+
     context.__enter__()
 
     # Save the runtime's name.
@@ -145,6 +186,39 @@ def start_xr():
     )
 
 
+pc_time = ctypes.wintypes.LARGE_INTEGER()
+kernel32 = ctypes.WinDLL("kernel32")
+
+
+def _get_time() -> xr.Time:
+    """
+    Calculate timestamp from Windows performance counter, since we don't have info from a graphics API.
+    """
+    kernel32.QueryPerformanceCounter(ctypes.byref(pc_time))
+
+    # Get native function.
+    pxrConvertWin32PerformanceCounterToTimeKHR = ctypes.cast(
+        xr.get_instance_proc_addr(
+            instance=context.instance,
+            name="xrConvertWin32PerformanceCounterToTimeKHR",
+        ),
+        xr.PFN_xrConvertWin32PerformanceCounterToTimeKHR,
+    )
+
+    # Query time.
+    xr_time = xr.Time()
+    result = pxrConvertWin32PerformanceCounterToTimeKHR(
+        context.instance,
+        ctypes.pointer(pc_time),
+        ctypes.byref(xr_time),
+    )
+    result = xr.check_result(result)
+    if result.is_exception():
+        raise result
+
+    return xr_time
+
+
 def _poll_xr():
     context.exit_render_loop = False
     context.poll_xr_events()
@@ -159,19 +233,6 @@ def _poll_xr():
                 xr.SessionState.FOCUSED,
         ):
             frame_state = xr.wait_frame(context.session)
-            xr.begin_frame(context.session)
-            context.render_layers = []
-            context.graphics.make_current()
-
-            xr.end_frame(
-                context.session,
-                frame_end_info=xr.FrameEndInfo(
-                    display_time=frame_state.predicted_display_time,
-                    environment_blend_mode=context.environment_blend_mode,
-                    layers=context.render_layers,
-                )
-            )
-
             return frame_state
     else:
         # Throttle loop since xrWaitFrame won't be called.
@@ -186,7 +247,17 @@ def tick_xr():
         subaction_path=ctypes.c_uint64(xr.NULL_PATH),
     )
 
-    frame_state = _poll_xr()
+    xr_time = _get_time()
+
+    # Headless "frame" loop.
+    _poll_xr()
+    xr.begin_frame(context.session)
+    xr.end_frame(
+        context.session,
+        frame_end_info=xr.FrameEndInfo(
+            display_time=xr_time,
+        )
+    )
 
     if context.session_state == xr.SessionState.FOCUSED:
         try:
@@ -207,7 +278,7 @@ def tick_xr():
             space_location = xr.locate_space(
                 space=space,
                 base_space=context.space,
-                time=frame_state.predicted_display_time,
+                time=xr_time,
             )
 
             if space_location.location_flags & xr.SPACE_LOCATION_POSITION_VALID_BIT:
@@ -218,7 +289,7 @@ def tick_xr():
             session=context.session,
             view_locate_info=xr.ViewLocateInfo(
                 view_configuration_type=context.view_configuration_type,
-                display_time=frame_state.predicted_display_time,
+                display_time=xr_time,
                 space=context.space,
             )
         )
@@ -228,6 +299,9 @@ def tick_xr():
             return None
 
         return poses
+
+    # Delay to avoid overloading system.
+    time.sleep(0.001)
 
     return None
 
