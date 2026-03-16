@@ -1,1 +1,2 @@
 pyopenxr==1.1.5301
+pyopengl==3.1.10
