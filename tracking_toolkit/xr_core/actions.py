@@ -49,3 +49,5 @@ vive_tracker_action_data = [
         subaction_path="/input/grip/pose"
     ) for role in vive_role_strings
 ]
+
+all_role_strings = ["head", "l_hand", "r_hand", *vive_role_strings]

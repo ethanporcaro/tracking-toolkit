@@ -24,7 +24,7 @@ class PANEL_UL_TrackerList(bpy.types.UIList):
     ):
         selected_tracker = item
 
-        layout.prop(selected_tracker, "nickname", text="", emboss=False, icon="TRACKER")
+        layout.prop(selected_tracker.naming, "nickname", text="", emboss=False, icon="TRACKER")
 
         if selected_tracker.hidden:
             layout.prop(item, "hidden", icon="HIDE_ON", icon_only=True, emboss=False)

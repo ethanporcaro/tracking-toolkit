@@ -165,7 +165,8 @@ class CreateRefsOperator(bpy.types.Operator):
 
             # Create bones for each tracker.
             for tracker in xr_context.trackers:
-                tracker_name = tracker.nickname
+                role_string = tracker.naming.role_string
+                nickname = tracker.naming.nickname
 
                 # Create bone.
 
@@ -174,10 +175,10 @@ class CreateRefsOperator(bpy.types.Operator):
                 # Get root bode again in case the old reference broke during mode change.
                 root = arm.data.edit_bones.get("root")
 
-                tracker_bone = ensure_bone(tracker_name)
+                tracker_bone = ensure_bone(nickname)
                 tracker_bone.parent = root
 
-                offset_bone = ensure_bone(f"{tracker_name} Offset")
+                offset_bone = ensure_bone(f"{nickname} Offset")
                 offset_bone.parent = tracker_bone
 
                 # Set shape.
@@ -185,14 +186,18 @@ class CreateRefsOperator(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode="OBJECT")
                 pose_bones = arm.pose.bones
 
-                tracker_pose_bone = pose_bones.get(tracker_name)
+                tracker_pose_bone = pose_bones.get(nickname)
                 tracker_pose_bone.custom_shape = tracker_obj
                 tracker_pose_bone.color.palette = "THEME01"
+                tracker_pose_bone["role_string"] = role_string
+                tracker_pose_bone["ref_type"] = "tracker"
 
-                offset_pose_bone = pose_bones.get(f"{tracker_name} Offset")
+                offset_pose_bone = pose_bones.get(f"{nickname} Offset")
                 offset_pose_bone.custom_shape = offset_obj
                 offset_pose_bone.color.palette = "THEME03"
                 offset_pose_bone.custom_shape_wire_width = 3
+                offset_pose_bone["role_string"] = role_string
+                offset_pose_bone["ref_type"] = "offset"
 
         # Empty references
         else:
@@ -224,13 +229,19 @@ class CreateRefsOperator(bpy.types.Operator):
 
             # Create empties for each tracker.
             for tracker in xr_context.trackers:
-                tracker_name = tracker.nickname
+                role_string = tracker.naming.role_string
+                nickname = tracker.naming.nickname
 
-                tracker_empty = ensure_empty(tracker_name)
-                offset_empty = ensure_empty(f"{tracker_name} Offset")
+                tracker_empty = ensure_empty(nickname)
+                offset_empty = ensure_empty(f"{nickname} Offset")
 
                 tracker_empty.parent = root_empty
+                tracker_empty["role_string"] = role_string
+                tracker_empty["ref_type"] = "tracker"
+
                 offset_empty.parent = tracker_empty
+                offset_empty["role_string"] = role_string
+                offset_empty["ref_type"] = "offset"
 
         # Restore the previous selection and mode.
         try:

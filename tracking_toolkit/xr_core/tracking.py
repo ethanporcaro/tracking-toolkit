@@ -20,33 +20,34 @@ def _update_tracker_list(poses):
     if not xr_context.enabled:
         return
 
-    # Check if trackers changed
-    new_trackers = poses.keys()
-    current_trackers = [tracker.name for tracker in xr_context.trackers]
-    if set(new_trackers) != set(current_trackers):
-        preferences = bpy.context.preferences.addons[base_package].preferences
+    preferences = bpy.context.preferences.addons[base_package].preferences
 
-        for i, tracker_name in enumerate(poses.keys()):
+    # Check if trackers changed.
+    new_trackers = poses.keys()
+    current_tracker_roles = [tracker.naming.role_string for tracker in xr_context.trackers]
+    if set(new_trackers) != set(current_tracker_roles):
+
+        for i, role_string in enumerate(poses.keys()):
             # Don't touch existing.
-            if tracker_name in current_trackers:
+            if role_string in current_tracker_roles:
                 continue
 
-            # Check if nickname is in preference already.
-            nickname = tracker_name
-            for n in preferences.nicknames:
-                if tracker_name == n.real_name:
-                    nickname = n.nickname
+            # Apply default nicknames to this new tracker.
+            nickname = "unknown"
+            for n in preferences.naming:
+                if n.role_string == role_string:
+                    nickname = str(n.nickname)
 
-            print(f"Adding new tracker: {nickname} ({tracker_name})")
+            print(f"Adding new tracker: {nickname} ({role_string})")
 
             # Set up tracker property data.
             tracker = xr_context.trackers.add()
-            tracker.name = tracker_name
-            tracker.nickname = nickname
-            tracker.prev_nickname = nickname
+            tracker.naming.role_string = role_string
+            tracker.naming.nickname = nickname
+            tracker.naming.prev_nickname = nickname
             tracker.type = (
-                "tracker" if tracker_name in vive_role_strings else
-                "hmd" if tracker_name == "head" else "controller"
+                "tracker" if role_string in vive_role_strings else
+                "hmd" if role_string == "head" else "controller"
             )
             tracker.index = i
 
@@ -99,10 +100,9 @@ def _apply_poses():
         return
 
     xr_context = bpy.context.scene.XRContext
-    trackers = xr_context.trackers
 
-    for pose_name in pose_data.keys():
-        pose = pose_data[pose_name]
+    for role_string in pose_data.keys():
+        pose = pose_data[role_string]
 
         # Apply bone transforms.
         if xr_context.use_bones:
@@ -111,29 +111,25 @@ def _apply_poses():
                 return
 
             bones = armature.pose.bones
-            for tracker in trackers:
-                if tracker.name != pose_name:
+            for bone in bones:
+                if not bone.get("role_string") == role_string:
                     continue
 
-                tracker_bone = bones.get(tracker.nickname)
-                if not tracker_bone:
+                if not bone.get("ref_type") == "tracker":
                     continue
 
-                tracker_bone.matrix = pose
+                bone.matrix = pose
 
         # Apply empty transforms.
         else:
-            # Get the tracker object.
-            tracker_obj = None
-            for tracker in trackers:
-                if tracker.name == pose_name:
-                    tracker_obj = bpy.data.objects.get(tracker.nickname)
-                    break
+            for obj in bpy.data.objects:
+                if not obj.get("role_string") == role_string:
+                    continue
 
-            if not tracker_obj:
-                continue  # TODO: Error
+                if not obj.get("ref_type") == "tracker":
+                    continue
 
-            tracker_obj.matrix_world = pose
+                obj.matrix_world = pose
 
 
 def _pose_vis_timer():
@@ -276,12 +272,13 @@ def _insert_action():
         print(">", tracker_name)
 
         tracker = data["tracker"]
+        nickname = tracker.naming.nickname
         num_keys = len(data["frames"])
 
         if xr_context.use_bones:
             animated_obj = bpy.data.objects.get("XR Trackers")
         else:
-            animated_obj = bpy.data.objects.get(tracker.nickname)  # Empty object references.
+            animated_obj = bpy.data.objects.get(nickname)  # Empty object references.
 
         if not animated_obj:
             continue  # TODO: Error
@@ -310,7 +307,7 @@ def _insert_action():
 
         # Map the F-Curve data_path and array_index to our collected data.
         if xr_context.use_bones:
-            data_path_prefix = f'pose.bones["{tracker.nickname}"]'
+            data_path_prefix = f'pose.bones["{nickname}"]'
             fcurve_props = [
                 (f"{data_path_prefix}.location", 3, data["locs"]),
                 (f"{data_path_prefix}.rotation_quaternion", 4, data["rots"]),
@@ -426,8 +423,6 @@ def stop_recording():
 
 def start_preview():
     xr_context: XRContext = bpy.context.scene.XRContext
-
-    xr_context.trackers.clear()  # Fresh state. They get updated later.
 
     _clear_buffer()
     start_xr()

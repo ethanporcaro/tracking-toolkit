@@ -1,93 +1,108 @@
 import bpy
 
-from .. import __package__ as base_package
-
-
-class XRTransform(bpy.types.PropertyGroup):
-    location: bpy.props.FloatVectorProperty(name="Location", default=(0, 0, 0))
-    rotation: bpy.props.FloatVectorProperty(name="Rotation", default=(0, 0, 0))
-    scale: bpy.props.FloatVectorProperty(name="Scale", default=(1, 1, 1))
-
-
-class XRTarget(bpy.types.PropertyGroup):
-    object: bpy.props.PointerProperty(name="Target object", type=bpy.types.Object)
-    transform: bpy.props.PointerProperty(type=XRTransform)
+from .xr_core.actions import all_role_strings
 
 
 def tracker_nickname_change(self, _):
-    # Make sure the new names don't conflict
-    if bpy.data.objects.get(self.nickname) or bpy.data.objects.get(f"{self.nickname} Offset"):
-        print("Cannot rename tracker to an existing nickname.")
+    role_string = self.role_string
+    new_nickname = self.nickname  # This will have been updated by the time the callback happens.
+
+    # Avoid trying to access objects on init.
+    if not hasattr(bpy.data, "objects"):
         return
 
-    # Set new names if the objects exist.
+    # Nickname cannot be set to a role_string, unless it's the tracker's own.
+    if new_nickname in all_role_strings:
+        # If we are renaming to another's.
+        if new_nickname != role_string:
+            # Revert to previous nickname (or role string).
+            self["nickname"] = self.prev_nickname or self.role_string
+
+            raise ValueError("You cannot use the real name of different tracker as a nickname.")
+
+    def _prevent_conflict(items):
+        """
+        Function that errors when renaming to an existing nickname.
+        """
+        existing_names = [i.name for i in items]
+        if new_nickname in existing_names:
+            # Revert to previous nickname (or role string).
+            self["nickname"] = self.prev_nickname or self.role_string
+
+            raise ValueError(f"Cannot rename {role_string} to an existing nickname: {new_nickname}.")
 
     if bpy.context.scene.XRContext.use_bones:
         armature = bpy.data.objects.get("XR Trackers")
-        bones = armature.pose.bones
+        if armature:
+            bones = armature.pose.bones
+            _prevent_conflict(bones)
 
-        tracker_point = bones.get(self.prev_nickname)
-        if tracker_point:
-            tracker_point.name = self.nickname
+            # Find and rename bones.
+            for bone in bones:
+                if bone.get("role_string") != role_string:
+                    continue
 
-        tracker_offset = bones.get(f"{self.prev_nickname} Offset")
-        if tracker_offset:
-            tracker_offset.name = f"{self.nickname} Offset"
+                if bone.get("ref_type") == "tracker":
+                    bone.name = new_nickname
+                elif bone.get("ref_type") == "offset":
+                    bone.name = f"{new_nickname} Offset"
 
     else:
-        tracker_point = bpy.data.objects.get(self.prev_nickname)
-        if tracker_point:
-            tracker_point.name = self.nickname
+        _prevent_conflict(bpy.data.objects)
 
-        tracker_offset = bpy.data.objects.get(f"{self.prev_nickname} Offset")
-        if tracker_offset:
-            tracker_offset.name = f"{self.nickname} Offset"
+        # Find and rename empties.
+        for obj in bpy.data.objects:
+            if not obj.get("role_string") == role_string:
+                continue
 
-    # Save to preferences
+            if obj.get("ref_type") == "tracker":
+                obj.name = new_nickname
+            elif obj.get("ref_type") == "offset":
+                obj.name = f"{new_nickname} Offset"
 
-    preferences = bpy.context.preferences.addons[base_package].preferences
-    for n in preferences.nicknames:
-        if self.name == n.real_name:
-            n.nickname = self.nickname
+    print(f"Set nickname of {role_string} to {new_nickname}")
+    self.prev_nickname = new_nickname
 
-    # Track this new nickname as the next previous one.
-    self.prev_nickname = self.nickname
+
+class XRTrackerNaming(bpy.types.PropertyGroup):
+    role_string: bpy.props.StringProperty()
+    prev_nickname: bpy.props.StringProperty()
+    nickname: bpy.props.StringProperty(name="Tracker nickname", update=tracker_nickname_change)
 
 
 def tracker_visible_change(self, _):
     # Apply tracker visibility settings.
 
-    if bpy.context.scene.XRContext.use_bones:
-        armature = bpy.data.objects.get("XR Trackers")
+    nickname = self.naming.nickname
+
+    # Try with bones.
+    armature = bpy.data.objects.get("XR Trackers")
+    if armature:
         bones = armature.pose.bones
 
-        tracker_point = bones.get(self.nickname)
+        tracker_point = bones.get(nickname)
         if tracker_point:
             tracker_point.hide = self.hidden
 
-        tracker_offset = bones.get(f"{self.nickname} Offset")
+        tracker_offset = bones.get(f"{nickname} Offset")
         if tracker_offset:
             tracker_offset.hide = self.hidden
 
-    else:
-        tracker_point = bpy.data.objects.get(self.nickname)
-        if tracker_point:
-            tracker_point.hide_viewport = self.hidden
+    # Try with empties.
+    tracker_point = bpy.data.objects.get(nickname)
+    if tracker_point:
+        tracker_point.hide_viewport = self.hidden
 
-        tracker_offset = bpy.data.objects.get(f"{self.nickname} Offset")
-        if tracker_offset:
-            tracker_offset.hide_viewport = self.hidden
+    tracker_offset = bpy.data.objects.get(f"{nickname} Offset")
+    if tracker_offset:
+        tracker_offset.hide_viewport = self.hidden
 
 
 class XRTracker(bpy.types.PropertyGroup):
     index: bpy.props.IntProperty(name="Tracker index")
     name: bpy.props.StringProperty(name="Tracker name")
-    nickname: bpy.props.StringProperty(name="Tracker nickname", update=tracker_nickname_change)
-    prev_nickname: bpy.props.StringProperty()
+    naming: bpy.props.PointerProperty(type=XRTrackerNaming)
     hidden: bpy.props.BoolProperty(name="Hidden in viewport", default=False, update=tracker_visible_change)
-
-    target: bpy.props.PointerProperty(type=XRTarget)
-    offset: bpy.props.PointerProperty(type=XRTarget)
 
 
 def selected_tracker_change_callback(self: "XRContext", context):
@@ -100,7 +115,7 @@ def selected_tracker_change_callback(self: "XRContext", context):
 
     selected_tracker = self.trackers[self.selected_tracker]
 
-    obj = bpy.data.objects.get(selected_tracker.nickname)
+    obj = bpy.data.objects.get(selected_tracker.naming.nickname)
     if not obj:
         return
 
