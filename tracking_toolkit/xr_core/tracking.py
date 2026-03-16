@@ -203,19 +203,19 @@ def _insert_action():
 
         for name, next_pose in next_sample.items():
             # Get the tracker.
-            tracker_data = None
+            tracker_object = None
             for tracker in bpy.context.scene.XRContext.trackers:
-                if tracker.name == name:
-                    tracker_data = tracker
+                if tracker.naming.role_string == name:
+                    tracker_object = tracker
                     break
 
-            if not tracker_data:
+            if not tracker_object:
                 continue
 
             # Initialize data structure for this object if it's the first time we see it.
             if name not in animation_data:
                 animation_data[name] = {
-                    "tracker": tracker_data,
+                    "tracker": tracker_object,
                     "frames": [],
                     "locs": [],
                     "rots": [],
