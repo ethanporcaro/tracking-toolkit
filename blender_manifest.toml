@@ -29,7 +29,8 @@ paths_exclude_pattern = [
   "repository_base.json",
   "DEVELOPMENT.md",
   "README.md",
-  "requirements.txt"
+  "requirements.txt",
+  "requirements.dev.txt"
 ]
 
 [permissions]
