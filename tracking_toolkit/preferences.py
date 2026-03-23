@@ -54,14 +54,22 @@ class ResetNicknamesOperator(bpy.types.Operator):
 
 def preference_nickname_change(self, _):
     role_string = self.role_string
-    new_nickname = self.nickname  # This will have been updated by the time the callback happens.
+    new_nickname = (
+        self.nickname
+    )  # This will have been updated by the time the callback happens.
 
     # Prevent renaming to existing nickname.
-    existing_names = [naming.nickname for naming in get_preferences().naming if naming.role_string != role_string]
+    existing_names = [
+        naming.nickname
+        for naming in get_preferences().naming
+        if naming.role_string != role_string
+    ]
     if new_nickname in existing_names:
         # Revert to previous.
         self["nickname"] = self.prev_nickname
-        raise ValueError(f"Cannot rename {role_string} to an existing nickname: {new_nickname}.")
+        raise ValueError(
+            f"Cannot rename {role_string} to an existing nickname: {new_nickname}."
+        )
 
     # Nickname cannot be set to a role_string, unless it's the tracker's own.
     if new_nickname in all_role_strings:
@@ -69,7 +77,9 @@ def preference_nickname_change(self, _):
         if new_nickname != role_string:
             # Revert to previous nickname (or role string).
             self["nickname"] = self.prev_nickname or self.role_string
-            raise ValueError("You cannot use the real name of different tracker as a nickname.")
+            raise ValueError(
+                "You cannot use the real name of different tracker as a nickname."
+            )
 
     print(f"Set preferences nickname of {role_string} to {new_nickname}")
     self.prev_nickname = new_nickname
@@ -78,7 +88,9 @@ def preference_nickname_change(self, _):
 class PreferenceNaming(bpy.types.PropertyGroup):
     role_string: bpy.props.StringProperty()
     prev_nickname: bpy.props.StringProperty()
-    nickname: bpy.props.StringProperty(name="Tracker nickname", update=preference_nickname_change)
+    nickname: bpy.props.StringProperty(
+        name="Tracker nickname", update=preference_nickname_change
+    )
 
 
 class Preferences(bpy.types.AddonPreferences):
@@ -88,8 +100,7 @@ class Preferences(bpy.types.AddonPreferences):
     record_custom_fps: bpy.props.IntProperty(default=24, min=1, max=120, soft_max=90)
 
     naming: bpy.props.CollectionProperty(
-        name="Default Tracker Nicknames",
-        type=PreferenceNaming
+        name="Default Tracker Nicknames", type=PreferenceNaming
     )
 
     def draw(self, _):
@@ -108,7 +119,9 @@ class Preferences(bpy.types.AddonPreferences):
         # Tracker nickname options.
 
         layout.label(text="Tracker Nicknames")
-        layout.label(text="These apply going forward, and will not replace the current nicknames in your scene.")
+        layout.label(
+            text="These apply going forward, and will not replace the current nicknames in your scene."
+        )
 
         for n in self.naming:
             layout.prop(n, "nickname", text=n.role_string)

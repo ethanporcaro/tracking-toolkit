@@ -2,17 +2,8 @@ _needs_reload = "bpy" in locals()
 
 import bpy
 
-from .tracking_toolkit import (
-    operators,
-    preferences,
-    properties,
-    ui
-)
-from .tracking_toolkit.xr_core import (
-    actions,
-    tracking,
-    core
-)
+from .tracking_toolkit import operators, preferences, properties, ui
+from .tracking_toolkit.xr_core import actions, tracking, core
 
 if _needs_reload:
     import importlib

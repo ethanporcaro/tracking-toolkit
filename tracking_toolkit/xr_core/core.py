@@ -13,12 +13,9 @@ from .actions import default_action_data, vive_tracker_action_data
 
 def _pose_to_mat(pose):
     loc = mathutils.Vector(pose.position.as_numpy())
-    rot = mathutils.Quaternion((
-        pose.orientation.w,
-        pose.orientation.x,
-        pose.orientation.y,
-        pose.orientation.z
-    ))
+    rot = mathutils.Quaternion(
+        (pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z)
+    )
     mat = mathutils.Matrix.LocRotScale(loc, rot, (1, 1, 1))
     # Convert OpenXR to Blender spaces.
     mat_world = bpy_extras.io_utils.axis_conversion("-Z", "Y", "Y", "Z").to_4x4()
@@ -46,8 +43,7 @@ def _headless_enter(self):
         create_info=self._session_create_info,
     )
     self.space = xr.create_reference_space(
-        session=self.session,
-        create_info=self._reference_space_create_info
+        session=self.session, create_info=self._reference_space_create_info
     )
     self.default_action_set = xr.create_action_set(
         instance=self.instance,
@@ -68,19 +64,23 @@ def start_xr():
 
     required_extensions = [
         xr.MND_HEADLESS_EXTENSION_NAME,
-        xr.KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME
+        xr.KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME,
     ]
     for ext in required_extensions:
         if ext not in available_extensions:
             if ext == xr.MND_HEADLESS_EXTENSION_NAME:
-                raise RuntimeError("Your runtime does not support headless mode. "
-                                   "Consult the user guide for alternatives.")
+                raise RuntimeError(
+                    "Your runtime does not support headless mode. "
+                    "Consult the user guide for alternatives."
+                )
 
             raise RuntimeError(f"Extension {ext} not supported.")
 
     enabled_extensions = required_extensions.copy()
 
-    use_vive_trackers = xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME in available_extensions
+    use_vive_trackers = (
+        xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME in available_extensions
+    )
     if use_vive_trackers:
         print("Using Vive trackers")
         enabled_extensions.append(xr.HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME)
@@ -93,8 +93,10 @@ def start_xr():
     # noinspection PyTypeChecker
     context = context_obj(
         context_provider=None,
-        instance_create_info=xr.InstanceCreateInfo(enabled_extension_names=enabled_extensions),
-        session_create_info=xr.SessionCreateInfo()  # We need to reinitialize the default parameter.
+        instance_create_info=xr.InstanceCreateInfo(
+            enabled_extension_names=enabled_extensions
+        ),
+        session_create_info=xr.SessionCreateInfo(),  # We need to reinitialize the default parameter.
     )
 
     context.__enter__()
@@ -110,7 +112,9 @@ def start_xr():
     if use_vive_trackers:
         action_data.extend(vive_tracker_action_data)
 
-    paths = [xr.string_to_path(context.instance, data.action_path) for data in action_data]
+    paths = [
+        xr.string_to_path(context.instance, data.action_path) for data in action_data
+    ]
     action = xr.create_action(
         action_set=context.default_action_set,
         create_info=xr.ActionCreateInfo(
@@ -119,50 +123,54 @@ def start_xr():
             localized_action_name="Tracker Pose",
             count_subaction_paths=len(paths),
             subaction_paths=paths,
-        )
+        ),
     )
 
     # Controller suggested bindings
-    suggested_bindings = [xr.ActionSuggestedBinding(
-        action=action,
-        binding=xr.string_to_path(
-            instance=context.instance,
-            path_string=data.action_path + data.subaction_path,
+    suggested_bindings = [
+        xr.ActionSuggestedBinding(
+            action=action,
+            binding=xr.string_to_path(
+                instance=context.instance,
+                path_string=data.action_path + data.subaction_path,
+            ),
         )
-    ) for data in default_action_data]
+        for data in default_action_data
+    ]
 
     xr.suggest_interaction_profile_bindings(
         instance=context.instance,
         suggested_bindings=xr.InteractionProfileSuggestedBinding(
             interaction_profile=xr.string_to_path(
-                context.instance,
-                "/interaction_profiles/khr/simple_controller"
+                context.instance, "/interaction_profiles/khr/simple_controller"
             ),
             count_suggested_bindings=len(suggested_bindings),
             suggested_bindings=suggested_bindings,
-        )
+        ),
     )
 
     # Vive tracker suggested bindings
     if use_vive_trackers:
-        suggested_bindings = [xr.ActionSuggestedBinding(
-            action=action,
-            binding=xr.string_to_path(
-                instance=context.instance,
-                path_string=data.action_path + data.subaction_path,
+        suggested_bindings = [
+            xr.ActionSuggestedBinding(
+                action=action,
+                binding=xr.string_to_path(
+                    instance=context.instance,
+                    path_string=data.action_path + data.subaction_path,
+                ),
             )
-        ) for data in vive_tracker_action_data]
+            for data in vive_tracker_action_data
+        ]
 
         xr.suggest_interaction_profile_bindings(
             instance=context.instance,
             suggested_bindings=xr.InteractionProfileSuggestedBinding(
                 interaction_profile=xr.string_to_path(
-                    context.instance,
-                    "/interaction_profiles/htc/vive_tracker_htcx"
+                    context.instance, "/interaction_profiles/htc/vive_tracker_htcx"
                 ),
                 count_suggested_bindings=len(suggested_bindings),
                 suggested_bindings=suggested_bindings,
-            )
+            ),
         )
 
     # Create action spaces
@@ -172,8 +180,8 @@ def start_xr():
             session=context.session,
             create_info=xr.ActionSpaceCreateInfo(
                 action=action,
-                subaction_path=xr.string_to_path(context.instance, data.action_path)
-            )
+                subaction_path=xr.string_to_path(context.instance, data.action_path),
+            ),
         )
 
     # Attach action sets.
@@ -181,7 +189,7 @@ def start_xr():
         session=context.session,
         attach_info=xr.SessionActionSetsAttachInfo(
             count_action_sets=len(context.action_sets),
-            action_sets=(xr.ActionSet * len(context.action_sets))(*context.action_sets)
+            action_sets=(xr.ActionSet * len(context.action_sets))(*context.action_sets),
         ),
     )
 
@@ -227,10 +235,10 @@ def _poll_xr():
 
     if context.session_is_running:
         if context.session_state in (
-                xr.SessionState.READY,
-                xr.SessionState.SYNCHRONIZED,
-                xr.SessionState.VISIBLE,
-                xr.SessionState.FOCUSED,
+            xr.SessionState.READY,
+            xr.SessionState.SYNCHRONIZED,
+            xr.SessionState.VISIBLE,
+            xr.SessionState.FOCUSED,
         ):
             frame_state = xr.wait_frame(context.session)
             return frame_state
@@ -256,7 +264,7 @@ def tick_xr():
         context.session,
         frame_end_info=xr.FrameEndInfo(
             display_time=xr_time,
-        )
+        ),
     )
 
     if context.session_state == xr.SessionState.FOCUSED:
@@ -291,7 +299,7 @@ def tick_xr():
                 view_configuration_type=context.view_configuration_type,
                 display_time=xr_time,
                 space=context.space,
-            )
+            ),
         )
         poses["head"] = _pose_to_mat(views[xr.utils.Eye.LEFT.value].pose)
 

@@ -3,7 +3,13 @@ import os
 import bpy
 from mathutils import Vector
 
-from .xr_core.tracking import start_recording, stop_recording, start_preview, stop_preview, get_context
+from .xr_core.tracking import (
+    start_recording,
+    stop_recording,
+    start_preview,
+    stop_preview,
+    get_context,
+)
 
 
 class ToggleRecordOperator(bpy.types.Operator):
@@ -69,7 +75,9 @@ class CreateRefsOperator(bpy.types.Operator):
 
         # Import shapes.
 
-        assets_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../assets")
+        assets_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "../assets"
+        )
         tracker_model_path = os.path.join(assets_path, "track-point.obj")
         offset_model_path = os.path.join(assets_path, "track-point-offset.obj")
 
@@ -247,7 +255,9 @@ class CreateRefsOperator(bpy.types.Operator):
                 prev_obj.select_set(True)
                 bpy.context.view_layer.objects.active = prev_obj
 
-                if bpy.context.object.mode != prev_mode:  # Safe against linked library immutability.
+                if (
+                    bpy.context.object.mode != prev_mode
+                ):  # Safe against linked library immutability.
                     bpy.ops.object.mode_set(mode=prev_mode)
         except ReferenceError:
             pass

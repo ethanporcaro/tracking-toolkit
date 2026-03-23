@@ -5,7 +5,9 @@ from .xr_core.actions import all_role_strings
 
 def tracker_nickname_change(self, _):
     role_string = self.role_string
-    new_nickname = self.nickname  # This will have been updated by the time the callback happens.
+    new_nickname = (
+        self.nickname
+    )  # This will have been updated by the time the callback happens.
 
     # Avoid trying to access objects on init.
     if not hasattr(bpy.data, "objects"):
@@ -18,7 +20,9 @@ def tracker_nickname_change(self, _):
             # Revert to previous nickname (or role string).
             self["nickname"] = self.prev_nickname or self.role_string
 
-            raise ValueError("You cannot use the real name of different tracker as a nickname.")
+            raise ValueError(
+                "You cannot use the real name of different tracker as a nickname."
+            )
 
     def _prevent_conflict(items):
         """
@@ -29,7 +33,9 @@ def tracker_nickname_change(self, _):
             # Revert to previous nickname (or role string).
             self["nickname"] = self.prev_nickname or self.role_string
 
-            raise ValueError(f"Cannot rename {role_string} to an existing nickname: {new_nickname}.")
+            raise ValueError(
+                f"Cannot rename {role_string} to an existing nickname: {new_nickname}."
+            )
 
     if bpy.context.scene.XRContext.use_bones:
         armature = bpy.data.objects.get("XR Trackers")
@@ -67,7 +73,9 @@ def tracker_nickname_change(self, _):
 class XRTrackerNaming(bpy.types.PropertyGroup):
     role_string: bpy.props.StringProperty()
     prev_nickname: bpy.props.StringProperty()
-    nickname: bpy.props.StringProperty(name="Tracker nickname", update=tracker_nickname_change)
+    nickname: bpy.props.StringProperty(
+        name="Tracker nickname", update=tracker_nickname_change
+    )
 
 
 def tracker_visible_change(self, _):
@@ -102,7 +110,9 @@ class XRTracker(bpy.types.PropertyGroup):
     index: bpy.props.IntProperty(name="Tracker index")
     name: bpy.props.StringProperty(name="Tracker name")
     naming: bpy.props.PointerProperty(type=XRTrackerNaming)
-    hidden: bpy.props.BoolProperty(name="Hidden in viewport", default=False, update=tracker_visible_change)
+    hidden: bpy.props.BoolProperty(
+        name="Hidden in viewport", default=False, update=tracker_visible_change
+    )
 
 
 def selected_tracker_change_callback(self: "XRContext", context):
@@ -135,14 +145,24 @@ def get_timer_items():
 
 
 class XRContext(bpy.types.PropertyGroup):
-    enabled: bpy.props.BoolProperty(name="OpenXR active", default=False, options={"SKIP_SAVE"})
-    recording: bpy.props.BoolProperty(name="OpenXR recording", default=False, options={"SKIP_SAVE"})
+    enabled: bpy.props.BoolProperty(
+        name="OpenXR active", default=False, options={"SKIP_SAVE"}
+    )
+    recording: bpy.props.BoolProperty(
+        name="OpenXR recording", default=False, options={"SKIP_SAVE"}
+    )
     use_bones: bpy.props.BoolProperty(name="Use Bone References", default=True)
 
     trackers: bpy.props.CollectionProperty(type=XRTracker)
-    selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0, update=selected_tracker_change_callback)
+    selected_tracker: bpy.props.IntProperty(
+        name="Selected tracker", default=0, update=selected_tracker_change_callback
+    )
     runtime: bpy.props.StringProperty(name="OpenXR runtime name", default="Unknown")
 
-    timer: bpy.props.EnumProperty(name="Time length", items=get_timer_items(), default="0")
-    timer_custom: bpy.props.IntProperty(name="Custom time length", default=15, min=0, max=60, step=5)
+    timer: bpy.props.EnumProperty(
+        name="Time length", items=get_timer_items(), default="0"
+    )
+    timer_custom: bpy.props.IntProperty(
+        name="Custom time length", default=15, min=0, max=60, step=5
+    )
     countdown: bpy.props.IntProperty(name="Countdown value", options={"SKIP_SAVE"})

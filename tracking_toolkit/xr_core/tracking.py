@@ -30,7 +30,9 @@ def _update_tracker_list(poses):
 
     # Check if trackers changed.
     new_trackers = poses.keys()
-    current_tracker_roles = [tracker.naming.role_string for tracker in xr_context.trackers]
+    current_tracker_roles = [
+        tracker.naming.role_string for tracker in xr_context.trackers
+    ]
     if set(new_trackers) != set(current_tracker_roles):
 
         for i, role_string in enumerate(poses.keys()):
@@ -52,8 +54,9 @@ def _update_tracker_list(poses):
             tracker.naming.nickname = nickname
             tracker.naming.prev_nickname = nickname
             tracker.type = (
-                "tracker" if role_string in vive_role_strings else
-                "hmd" if role_string == "head" else "controller"
+                "tracker"
+                if role_string in vive_role_strings
+                else "hmd" if role_string == "head" else "controller"
             )
             tracker.index = i
 
@@ -184,7 +187,9 @@ def _insert_action():
 
     # Calculate recording FPS.
     scene_fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
-    record_fps = scene_fps if preferences.record_at_scene_fps else preferences.record_custom_fps
+    record_fps = (
+        scene_fps if preferences.record_at_scene_fps else preferences.record_custom_fps
+    )
 
     start_time = pose_data[0][0]
     end_time = pose_data[-1][0]
@@ -253,7 +258,7 @@ def _insert_action():
                     "frames": [],
                     "locs": [],
                     "rots": [],
-                    "scales": []
+                    "scales": [],
                 }
 
             # Lerp pose.
@@ -276,9 +281,11 @@ def _insert_action():
             # Inverse calculation from Blender space back to OpenXR space.
             # I don't quite know why this is needed, but it has to do with the way bone transformations are handled.
             if xr_context.use_bones:
-                mat_world = bpy_extras.io_utils.axis_conversion(
-                    "-Z", "Y", "Y", "Z"
-                ).to_4x4().inverted()
+                mat_world = (
+                    bpy_extras.io_utils.axis_conversion("-Z", "Y", "Y", "Z")
+                    .to_4x4()
+                    .inverted()
+                )
                 lerp_pose = mat_world @ lerp_pose
 
             # Decompose the matrix and append data.
@@ -292,7 +299,9 @@ def _insert_action():
 
         # Increment.
         current_time += 1 / record_fps
-        frame += 1 * (scene_fps / record_fps)  # Compensate for difference in scene and record fps
+        frame += 1 * (
+            scene_fps / record_fps
+        )  # Compensate for difference in scene and record fps
 
     # Now insert or replace the data
     print("OpenXR Inserting data...")
@@ -331,13 +340,13 @@ def _insert_action():
             fcurve_props = [
                 (f"{data_path_prefix}.location", 3, data["locs"]),
                 (f"{data_path_prefix}.rotation_quaternion", 4, data["rots"]),
-                (f"{data_path_prefix}.scale", 3, data["scales"])
+                (f"{data_path_prefix}.scale", 3, data["scales"]),
             ]
         else:
             fcurve_props = [
                 ("location", 3, data["locs"]),
                 ("rotation_quaternion", 4, data["rots"]),
-                ("scale", 3, data["scales"])
+                ("scale", 3, data["scales"]),
             ]
 
         # Efficiently insert animation data by directly inserting it into the fcurves.
@@ -345,7 +354,9 @@ def _insert_action():
             # Loop over every component (eg x, y, z, etc.)/
             for i in range(num_components):
                 # Get or create the F-Curve.
-                channelbag = anim_utils.action_ensure_channelbag_for_slot(action, action.slots[0])
+                channelbag = anim_utils.action_ensure_channelbag_for_slot(
+                    action, action.slots[0]
+                )
                 fcurve = channelbag.fcurves.find(data_path, index=i)
                 if fcurve:
                     channelbag.fcurves.remove(fcurve)
@@ -409,7 +420,9 @@ def start_recording():
     else:
         delay = int(delay_val)
 
-    xr_context.countdown = delay + 1  # Add one since the value is decremented at the start of the timer.
+    xr_context.countdown = (
+        delay + 1
+    )  # Add one since the value is decremented at the start of the timer.
 
     if not bpy.app.timers.is_registered(_xr_countdown_timer):
         bpy.app.timers.register(_xr_countdown_timer)
