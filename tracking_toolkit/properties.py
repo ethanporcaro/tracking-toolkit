@@ -1,5 +1,6 @@
 import bpy
 
+from .utils import convert_bones_to_empties, convert_empties_to_bones
 from .xr_core.actions import all_role_strings, reformat_role_string
 
 
@@ -139,6 +140,16 @@ def selected_tracker_change_callback(self: "XRContext", context):
     context.view_layer.objects.active = obj
 
 
+def use_bones_change_callback(self: "XRContext", _):
+    # Convert empties to bones.
+    if self.use_bones:
+        convert_empties_to_bones()
+
+    # Convert bones to empties.
+    else:
+        convert_bones_to_empties()
+
+
 def get_timer_items():
     return [
         ("0", "None", "No timer"),
@@ -156,7 +167,9 @@ class XRContext(bpy.types.PropertyGroup):
     recording: bpy.props.BoolProperty(
         name="OpenXR recording", default=False, options={"SKIP_SAVE"}
     )
-    use_bones: bpy.props.BoolProperty(name="Use Bone References", default=True)
+    use_bones: bpy.props.BoolProperty(
+        name="Use Bone References", default=True, update=use_bones_change_callback
+    )
 
     trackers: bpy.props.CollectionProperty(type=XRTracker)
     selected_tracker: bpy.props.IntProperty(

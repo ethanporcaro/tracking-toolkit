@@ -2,7 +2,7 @@ _needs_reload = "bpy" in locals()
 
 import bpy
 
-from .tracking_toolkit import operators, preferences, properties, ui
+from .tracking_toolkit import operators, preferences, properties, ui, utils
 from .tracking_toolkit.xr_core import actions, tracking, core
 
 if _needs_reload:
@@ -15,6 +15,7 @@ if _needs_reload:
     ui = importlib.reload(ui)
     tracking = importlib.reload(tracking)
     core = importlib.reload(core)
+    utils = importlib.reload(utils)
 
     print("Tracking Toolkit Reloaded")
 

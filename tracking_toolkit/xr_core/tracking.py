@@ -1,26 +1,17 @@
 import datetime
 
 import bpy
-import bpy_extras
 import mathutils
 from bpy_extras import anim_utils
 
 from .actions import vive_role_strings
 from .core import start_xr, tick_xr, stop_xr
 from ..preferences import get_preferences
-from ..properties import XRContext
+from ..utils import get_context
 
 # Shared variables
 data_buffer = []
 should_stop = False
-
-
-def get_context() -> XRContext:
-    """
-    Get the shared XRContext properties instance.
-    """
-    # noinspection PyUnresolvedReferences
-    return bpy.context.scene.XRContext
 
 
 def _update_tracker_list(poses):
@@ -275,18 +266,6 @@ def _insert_action():
             sca_final = sca0.lerp(sca1, factor)
 
             lerp_pose = mathutils.Matrix.LocRotScale(loc_final, rot_final, sca_final)
-
-            # Decompose and add to data structure
-
-            # Inverse calculation from Blender space back to OpenXR space.
-            # I don't quite know why this is needed, but it has to do with the way bone transformations are handled.
-            if xr_context.use_bones:
-                mat_world = (
-                    bpy_extras.io_utils.axis_conversion("-Z", "Y", "Y", "Z")
-                    .to_4x4()
-                    .inverted()
-                )
-                lerp_pose = mat_world @ lerp_pose
 
             # Decompose the matrix and append data.
             loc, rot, scale = lerp_pose.decompose()

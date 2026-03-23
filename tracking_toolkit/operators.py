@@ -1,8 +1,6 @@
-import os
-
 import bpy
-from mathutils import Vector
 
+from .utils import create_bone_references, create_empty_references
 from .xr_core.tracking import (
     start_recording,
     stop_recording,
@@ -44,88 +42,12 @@ class ToggleActiveOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
-def delete_recursive(obj: bpy.types.Object):
-    for child in obj.children:
-        delete_recursive(child)
-    bpy.data.objects.remove(obj, do_unlink=True)
-
-
-def select_obj(target_obj: bpy.types.Object):
-    bpy.ops.object.select_all(action="DESELECT")
-    target_obj.select_set(True)
-    bpy.context.view_layer.objects.active = target_obj
-
-
 class CreateRefsOperator(bpy.types.Operator):
     bl_idname = "id.add_tracker_res"
     bl_label = "Create tracker target references"
     bl_options = {"UNDO"}
 
     @staticmethod
-    def _ensure_widgets() -> tuple[bpy.types.Object, bpy.types.Object]:
-        """
-        Ensure custom shapes exist for tracker references.
-        :returns: Tuple of (tracker_object, offset_object).
-        """
-
-        widget_collection = bpy.data.collections.get("TTK Widgets")
-        if not widget_collection:
-            widget_collection = bpy.data.collections.new(name="TTK Widgets")
-            bpy.context.scene.collection.children.link(widget_collection)
-
-        # Import shapes.
-
-        assets_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "../assets"
-        )
-        tracker_model_path = os.path.join(assets_path, "track-point.obj")
-        offset_model_path = os.path.join(assets_path, "track-point-offset.obj")
-
-        tracker_obj = bpy.data.objects.get("TTK Tracker")
-        offset_obj = bpy.data.objects.get("TTK Offset")
-
-        if not tracker_obj:
-            bpy.ops.wm.obj_import(filepath=tracker_model_path)
-            tracker_obj = bpy.context.object
-            tracker_obj.name = "TTK Tracker"
-
-            tracker_obj.show_name = True
-            tracker_obj.hide_render = True
-            tracker_obj.show_wire = True
-            tracker_obj.color = (1.0, 0.0, 0.0, 1.0)  # Red.
-
-            bpy.context.collection.objects.unlink(tracker_obj)
-            widget_collection.objects.link(tracker_obj)
-
-        if not offset_obj:
-            bpy.ops.wm.obj_import(filepath=offset_model_path)
-            offset_obj = bpy.context.object
-            offset_obj.name = "TTK Offset"
-
-            offset_obj.hide_render = True
-            offset_obj.show_wire = True
-            offset_obj.color = (0.0, 1.0, 0.0, 1.0)  # Green.
-
-            bpy.context.collection.objects.unlink(offset_obj)
-            widget_collection.objects.link(offset_obj)
-
-        # Default reference transformations
-        tracker_obj.location = (0, 0, 0)
-        tracker_obj.rotation_euler = (0, 0, 0)
-        tracker_obj.scale = (1, 1, 1)
-
-        offset_obj.location = (0, 0, 0)
-        offset_obj.rotation_euler = (0, 0, 0)
-        offset_obj.scale = (1, 1, 1)
-
-        # Enable wireframe color display.
-        bpy.context.space_data.shading.wireframe_color_type = "OBJECT"
-
-        # Hide collection
-        bpy.context.view_layer.layer_collection.children["TTK Widgets"].exclude = True
-
-        return tracker_obj, offset_obj
-
     def execute(self, context):
         xr_context = get_context()
 
@@ -134,133 +56,11 @@ class CreateRefsOperator(bpy.types.Operator):
         if xr_context.enabled:
             stop_preview()
 
-        # Set to object mode while keeping track of the previous one
-        prev_obj = bpy.context.object
-        prev_mode = None
-        if prev_obj:
-            prev_mode = prev_obj.mode
-            if prev_mode != "OBJECT":  # Safe against linked library immutability
-                bpy.ops.object.mode_set(mode="OBJECT")
-
-        # Bone references.
+        # Create references.
         if xr_context.use_bones:
-            print("Creating bone references.")
-            tracker_obj, offset_obj = self._ensure_widgets()
-
-            arm = bpy.data.objects.get("XR Trackers")
-            if not arm:
-                arm_data = bpy.data.armatures.new("XR Trackers")
-                arm = bpy.data.objects.new("XR Trackers", arm_data)
-                context.scene.collection.objects.link(arm)
-
-            select_obj(arm)
-            bpy.ops.object.mode_set(mode="EDIT")
-
-            def ensure_bone(name: str):
-                edit_bones = arm.data.edit_bones
-                _bone = edit_bones.get(name)
-                if not _bone:
-                    _bone = edit_bones.new(name)
-                _bone.head = Vector((0, 0, 0))
-                _bone.tail = Vector((0, 0, 1))
-                return _bone
-
-            # Root bone.
-            root = ensure_bone("root")
-            root.tail = Vector((0, 0, 0.2))
-
-            # Create bones for each tracker.
-            for tracker in xr_context.trackers:
-                role_string = tracker.naming.role_string
-                nickname = tracker.naming.nickname
-
-                # Create bone.
-
-                bpy.ops.object.mode_set(mode="EDIT")
-
-                # Get root bode again in case the old reference broke during mode change.
-                root = arm.data.edit_bones.get("root")
-
-                tracker_bone = ensure_bone(nickname)
-                tracker_bone.parent = root
-
-                offset_bone = ensure_bone(f"{nickname} Offset")
-                offset_bone.parent = tracker_bone
-
-                # Set shape.
-
-                bpy.ops.object.mode_set(mode="OBJECT")
-                pose_bones = arm.pose.bones
-
-                tracker_pose_bone = pose_bones.get(nickname)
-                tracker_pose_bone.custom_shape = tracker_obj
-                tracker_pose_bone.color.palette = "THEME01"
-                tracker_pose_bone["role_string"] = role_string
-                tracker_pose_bone["ref_type"] = "tracker"
-
-                offset_pose_bone = pose_bones.get(f"{nickname} Offset")
-                offset_pose_bone.custom_shape = offset_obj
-                offset_pose_bone.color.palette = "THEME03"
-                offset_pose_bone.custom_shape_wire_width = 3
-                offset_pose_bone["role_string"] = role_string
-                offset_pose_bone["ref_type"] = "offset"
-
-        # Empty references
+            create_bone_references()
         else:
-            print("Creating empty references.")
-
-            # Create root
-            root_empty = bpy.data.objects.get("XR Root")
-
-            # Delete existing root.
-            if root_empty:
-                delete_recursive(root_empty)
-
-            bpy.ops.object.empty_add(type="PLAIN_AXES", location=(0, 0, 0))
-            root_empty = bpy.context.object
-            root_empty.name = "XR Root"
-            root_empty.empty_display_size = 0.1
-
-            def ensure_empty(name):
-                # Create empty.
-                _empty = bpy.data.objects.get(name)
-                if not _empty:
-                    _empty = bpy.data.objects.new(name, None)
-                    context.scene.collection.objects.link(_empty)
-
-                # Set up rotation modes.
-                _empty.rotation_mode = "QUATERNION"
-
-                return _empty
-
-            # Create empties for each tracker.
-            for tracker in xr_context.trackers:
-                role_string = tracker.naming.role_string
-                nickname = tracker.naming.nickname
-
-                tracker_empty = ensure_empty(nickname)
-                offset_empty = ensure_empty(f"{nickname} Offset")
-
-                tracker_empty.parent = root_empty
-                tracker_empty["role_string"] = role_string
-                tracker_empty["ref_type"] = "tracker"
-
-                offset_empty.parent = tracker_empty
-                offset_empty["role_string"] = role_string
-                offset_empty["ref_type"] = "offset"
-
-        # Restore the previous selection and mode.
-        try:
-            if prev_obj:
-                prev_obj.select_set(True)
-                bpy.context.view_layer.objects.active = prev_obj
-
-                if (
-                    bpy.context.object.mode != prev_mode
-                ):  # Safe against linked library immutability.
-                    bpy.ops.object.mode_set(mode=prev_mode)
-        except ReferenceError:
-            pass
+            create_empty_references()
 
         if should_reenable:
             start_preview()
