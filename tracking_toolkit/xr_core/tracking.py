@@ -306,7 +306,15 @@ def _insert_action():
     # Now insert or replace the data
     print("OpenXR Inserting data...")
 
-    time_string = start_time.strftime("%Y/%m/%d_%H:%M:%S")
+    # Format SMPTE timecode.
+    # Also calculate the frame based on the current microsecond/scene time.
+    # The frame is truncated down.
+    time_string = start_time.strftime("%H:%M:%S")
+    second_offset = start_time.microsecond / (1000 * 1000)
+    frame_offset = int(second_offset * record_fps)
+    time_string += f":{frame_offset}"
+
+    print(f"Using SMPTE timecode: {time_string}")
 
     action = None
 
@@ -329,9 +337,10 @@ def _insert_action():
                 action = _create_action(arm, time_string)
 
         # When using empties, create an action for each empty object.
+        # The action name will be prefixed with the tracker name to prevent conflicts.
         else:
             empty = bpy.data.objects.get(nickname)
-            action = _create_action(empty, time_string)
+            action = _create_action(empty, f"{tracker_name}_{time_string}")
 
         # Determine the property names for the fcurve channels we will put animation data into.
         # Armature actions are handled a little differently.
