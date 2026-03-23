@@ -1,12 +1,12 @@
 import bpy
 from bl_ui.space_view3d_toolbar import View3DPanel
 
+from .xr_core.tracking import get_context
 from .operators import (
     ToggleActiveOperator,
     CreateRefsOperator,
     ToggleRecordOperator
 )
-from .properties import XRContext
 
 
 class PANEL_UL_TrackerList(bpy.types.UIList):
@@ -41,7 +41,7 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
 
     def draw(self, context: bpy.types.Context):
         layout = self.layout
-        xr_context: XRContext = context.scene.XRContext
+        xr_context = get_context()
 
         # Toggle active button
         # It's super annoying to have Blender not save the state of this button on save, so we just label it funny

@@ -29,12 +29,12 @@ if _needs_reload:
 
 
 @bpy.app.handlers.persistent
-def scene_update_callback(scene: bpy.types.Scene, _):
+def scene_update_callback(scene, _):
     """
     When a tracker object is selected in the scene, make it active in the list too.
     This does not work with bones.
     """
-    xr_context = scene.XRContext
+    xr_context = tracking.get_context()
     if xr_context.use_bones:
         return
 
@@ -50,7 +50,7 @@ def scene_update_callback(scene: bpy.types.Scene, _):
 
 
 @bpy.app.handlers.persistent
-def load_post_callback(_):
+def load_post_callback(*_):
     """
     Stop XR whenever a new file is loaded.
     """

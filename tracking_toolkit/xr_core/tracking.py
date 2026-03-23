@@ -7,20 +7,26 @@ from bpy_extras import anim_utils
 
 from .actions import vive_role_strings
 from .core import start_xr, tick_xr, stop_xr
+from ..preferences import get_preferences
 from ..properties import XRContext
-from ... import __package__ as base_package
 
 # Shared variables
 data_buffer = []
 should_stop = False
 
 
+def get_context() -> XRContext:
+    """
+    Get the shared XRContext properties instance.
+    """
+    # noinspection PyUnresolvedReferences
+    return bpy.context.scene.XRContext
+
+
 def _update_tracker_list(poses):
-    xr_context: XRContext = bpy.context.scene.XRContext
+    xr_context = get_context()
     if not xr_context.enabled:
         return
-
-    preferences = bpy.context.preferences.addons[base_package].preferences
 
     # Check if trackers changed.
     new_trackers = poses.keys()
@@ -34,7 +40,7 @@ def _update_tracker_list(poses):
 
             # Apply default nicknames to this new tracker.
             nickname = "unknown"
-            for n in preferences.naming:
+            for n in get_preferences().naming:
                 if n.role_string == role_string:
                     nickname = str(n.nickname)
 
@@ -63,7 +69,7 @@ def _xr_tick_timer():
     # Calculate recording FPS.
     # It may be a good idea to move this math outside the timer.
 
-    preferences = bpy.context.preferences.addons[base_package].preferences
+    preferences = get_preferences()
     if preferences.record_at_scene_fps:
         framerate = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
     else:
@@ -99,7 +105,7 @@ def _apply_poses():
     if not pose_data:
         return
 
-    xr_context = bpy.context.scene.XRContext
+    xr_context = get_context()
 
     for role_string in pose_data.keys():
         pose = pose_data[role_string]
@@ -137,9 +143,37 @@ def _pose_vis_timer():
     return 1.0 / 60  # 60hz
 
 
+def _create_action(obj: bpy.types.Object, action_name: str):
+    """
+    Create a new action for an object.
+    If an action already exists, it is pushed down onto an NLA track and muted.
+    """
+
+    # Create animation data if unavailable.
+    if not obj.animation_data:
+        obj.animation_data_create()
+
+    # If an action already exists, push it to a new track and mute it.
+    action = obj.animation_data.action
+    if action:
+        track = obj.animation_data.nla_tracks.new()
+        track.name = action.name
+        track.strips.new(action.name, int(action.frame_range[0]), action)
+        track.mute = True
+
+    # Create new action.
+    action = bpy.data.actions.new(name=action_name)
+    obj.animation_data.action = action
+
+    # Create and select action slot.
+    obj.animation_data.action_slot = action.slots.new("OBJECT", "MOCAP")
+
+    return action
+
+
 def _insert_action():
-    xr_context = bpy.context.scene.XRContext
-    preferences = bpy.context.preferences.addons[base_package].preferences
+    xr_context = get_context()
+    preferences = get_preferences()
 
     pose_data = _get_buffer()
 
@@ -187,10 +221,10 @@ def _insert_action():
         # This is because the Blender timer might not have gone off at the correct interval.
 
         # Calculate lerp factor.
+        factor = 0
         if closest_idx == 0:
             prev_sample = pose_data[0][1]
             next_sample = pose_data[0][1]
-            factor = 0
         else:
             prev_time = source_times[closest_idx - 1]
             next_time = source_times[closest_idx]
@@ -204,7 +238,7 @@ def _insert_action():
         for name, next_pose in next_sample.items():
             # Get the tracker.
             tracker_object = None
-            for tracker in bpy.context.scene.XRContext.trackers:
+            for tracker in get_context().trackers:
                 if tracker.naming.role_string == name:
                     tracker_object = tracker
                     break
@@ -265,8 +299,7 @@ def _insert_action():
 
     time_string = start_time.strftime("%Y/%m/%d_%H:%M:%S")
 
-    # Keep track of armature creation, so it only happens once in the loop.
-    has_created_armature_action = False
+    action = None
 
     for tracker_name, data in animation_data.items():
         print(">", tracker_name)
@@ -275,37 +308,24 @@ def _insert_action():
         nickname = tracker.naming.nickname
         num_keys = len(data["frames"])
 
+        # Create actions.
+
+        # When using bones, only one action is created for the entire armature.
         if xr_context.use_bones:
-            animated_obj = bpy.data.objects.get("XR Trackers")
+            if not action:  # We are in a loop, so ensure it's only created once.
+                arm = bpy.data.objects.get("XR Trackers")
+                if not arm:
+                    raise ValueError("Could not find armature")  # FIXME: Handle this.
+
+                action = _create_action(arm, time_string)
+
+        # When using empties, create an action for each empty object.
         else:
-            animated_obj = bpy.data.objects.get(nickname)  # Empty object references.
+            empty = bpy.data.objects.get(nickname)
+            action = _create_action(empty, time_string)
 
-        if not animated_obj:
-            continue  # TODO: Error
-
-        # Create animation data if unavailable.
-        if not animated_obj.animation_data:
-            animated_obj.animation_data_create()
-
-        # Create new actions.
-        if not xr_context.use_bones or (xr_context.use_bones and not has_created_armature_action):
-            # If an action already exists, push it to a new track and mute it.
-            existing_action = animated_obj.animation_data.action
-            if existing_action:
-                track = animated_obj.animation_data.nla_tracks.new()
-                track.name = existing_action.name
-                track.strips.new(existing_action.name, int(existing_action.frame_range[0]), existing_action)
-                track.mute = True
-
-            # Create a new action.
-            action = bpy.data.actions.new(name=f"{time_string}-{animated_obj.name}")
-            animated_obj.animation_data.action = action
-
-            # If using bones, mark action as created so we don't repeat it next iteration.
-            if xr_context.use_bones:
-                has_created_armature_action = True
-
-        # Map the F-Curve data_path and array_index to our collected data.
+        # Determine the property names for the fcurve channels we will put animation data into.
+        # Armature actions are handled a little differently.
         if xr_context.use_bones:
             data_path_prefix = f'pose.bones["{nickname}"]'
             fcurve_props = [
@@ -313,7 +333,6 @@ def _insert_action():
                 (f"{data_path_prefix}.rotation_quaternion", 4, data["rots"]),
                 (f"{data_path_prefix}.scale", 3, data["scales"])
             ]
-
         else:
             fcurve_props = [
                 ("location", 3, data["locs"]),
@@ -321,51 +340,43 @@ def _insert_action():
                 ("scale", 3, data["scales"])
             ]
 
+        # Efficiently insert animation data by directly inserting it into the fcurves.
         for data_path, num_components, values in fcurve_props:
+            # Loop over every component (eg x, y, z, etc.)/
             for i in range(num_components):
-                # Get or create the F-Curve
-                if len(action.slots) > 0:
-                    action_slot = action.slots[0]
-                else:
-                    action_slot = action.slots.new("OBJECT", "MOCAP")
-
-                channelbag = anim_utils.action_ensure_channelbag_for_slot(action, action_slot)
+                # Get or create the F-Curve.
+                channelbag = anim_utils.action_ensure_channelbag_for_slot(action, action.slots[0])
                 fcurve = channelbag.fcurves.find(data_path, index=i)
                 if fcurve:
                     channelbag.fcurves.remove(fcurve)
                 fcurve = channelbag.fcurves.new(data_path, index=i)
 
-                # Fill with points
+                # Fill with points.
                 fcurve.keyframe_points.add(num_keys)
 
                 # Create the flattened list for foreach_set.
-                # The format is [frame1, value1, frame2, value2, ...]
+                # The format is [frame1, value1, frame2, value2, ...].
 
-                # Initialize
+                # Allocate array elements.
                 key_coords = [0.0] * (num_keys * 2)
 
-                # We slice the values list to get the data for the current component (axis)
+                # We slice the values list to get the data for the current component (axis).
                 component_values = values[i::num_components]
 
-                key_coords[0::2] = data["frames"]
-                key_coords[1::2] = component_values
+                key_coords[0::2] = data["frames"]  # Frame numbers on even elements.
+                key_coords[1::2] = component_values  # Data values on odd elements.
 
-                # Set all keyframe coordinates at once
+                # Set all keyframe coordinates at once.
                 fcurve.keyframe_points.foreach_set("co", key_coords)
 
-                # Update the fcurve to apply changes
+                # Update the fcurve to apply changes.
                 fcurve.update()
-
-        # Select the first action slot.
-        # Otherwise, the new keyframes will not show.
-        action_slot = action.slots[0]
-        animated_obj.animation_data.action_slot = action_slot
 
     print("Done")
 
 
 def _xr_countdown_timer():
-    xr_context: XRContext = bpy.context.scene.XRContext
+    xr_context = get_context()
 
     if not xr_context.recording:
         print("OpenXR Countdown Canceled")
@@ -389,7 +400,7 @@ def _xr_countdown_timer():
 
 
 def start_recording():
-    xr_context: XRContext = bpy.context.scene.XRContext
+    xr_context = get_context()
 
     # Get timer delay.
     delay_val = xr_context.timer
@@ -408,7 +419,7 @@ def start_recording():
 
 
 def stop_recording():
-    xr_context: XRContext = bpy.context.scene.XRContext
+    xr_context = get_context()
 
     xr_context.recording = False
 
@@ -422,11 +433,9 @@ def stop_recording():
 
 
 def start_preview():
-    xr_context: XRContext = bpy.context.scene.XRContext
-
     _clear_buffer()
     start_xr()
-    xr_context.enabled = True
+    get_context().enabled = True
 
     if not bpy.app.timers.is_registered(_xr_tick_timer):
         bpy.app.timers.register(_xr_tick_timer)
@@ -450,7 +459,8 @@ def stop_preview():
     stop_xr()
     _clear_buffer()
 
-    bpy.context.scene.XRContext.enabled = False
-    bpy.context.scene.XRContext.recording = False
+    xr_context = get_context()
+    xr_context.enabled = False
+    xr_context.recording = False
 
     print("OpenXR Preview Stopped")

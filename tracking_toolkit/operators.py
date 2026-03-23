@@ -3,8 +3,7 @@ import os
 import bpy
 from mathutils import Vector
 
-from .properties import XRContext
-from .xr_core.tracking import start_recording, stop_recording, start_preview, stop_preview
+from .xr_core.tracking import start_recording, stop_recording, start_preview, stop_preview, get_context
 
 
 class ToggleRecordOperator(bpy.types.Operator):
@@ -12,7 +11,7 @@ class ToggleRecordOperator(bpy.types.Operator):
     bl_label = "Toggle OpenXR recording"
 
     def execute(self, context):
-        xr_context: XRContext = context.scene.XRContext
+        xr_context = get_context()
 
         # Double check state, though this should have been checked before
         if not xr_context.enabled:
@@ -31,9 +30,7 @@ class ToggleActiveOperator(bpy.types.Operator):
     bl_label = "Toggle OpenXR's tracking state"
 
     def execute(self, context):
-        xr_context: XRContext = context.scene.XRContext
-
-        if xr_context.enabled:
+        if get_context().enabled:
             stop_preview()
         else:
             start_preview()
@@ -58,7 +55,8 @@ class CreateRefsOperator(bpy.types.Operator):
     bl_label = "Create tracker target references"
     bl_options = {"UNDO"}
 
-    def _ensure_widgets(self) -> tuple[bpy.types.Object, bpy.types.Object]:
+    @staticmethod
+    def _ensure_widgets() -> tuple[bpy.types.Object, bpy.types.Object]:
         """
         Ensure custom shapes exist for tracker references.
         :returns: Tuple of (tracker_object, offset_object).
@@ -121,7 +119,7 @@ class CreateRefsOperator(bpy.types.Operator):
         return tracker_obj, offset_obj
 
     def execute(self, context):
-        xr_context: XRContext = context.scene.XRContext
+        xr_context = get_context()
 
         # Temporarily disable XR.
         should_reenable = xr_context.enabled

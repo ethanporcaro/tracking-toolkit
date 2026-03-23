@@ -6,12 +6,19 @@ from .xr_core.actions import all_role_strings
 from .. import __package__ as base_package
 
 
+def get_preferences() -> "Preferences | bpy.types.AddonPreferences":
+    """
+    Get the preferences object for this addon.
+    """
+    return bpy.context.preferences.addons[base_package].preferences
+
+
 def initialize_preferences(reconform_existing: bool = False):
     """
     Reset nickname preferences to defaults.
     Optionally reconform_existing existing (can only be called from an operator).
     """
-    preferences: Preferences | None = bpy.context.preferences.addons[base_package].preferences
+    preferences = get_preferences()
 
     for role_string in all_role_strings:
         if role_string in [n.role_string for n in preferences.naming]:
@@ -40,8 +47,7 @@ class ResetNicknamesOperator(bpy.types.Operator):
     bl_options = {"UNDO"}
 
     def execute(self, context):
-        preferences: Preferences | None = context.preferences.addons[base_package].preferences
-        preferences.naming.clear()
+        get_preferences().naming.clear()
         initialize_preferences(reconform_existing=True)
         return {"FINISHED"}
 
@@ -50,10 +56,8 @@ def preference_nickname_change(self, _):
     role_string = self.role_string
     new_nickname = self.nickname  # This will have been updated by the time the callback happens.
 
-    preferences: Preferences | None = bpy.context.preferences.addons[base_package].preferences
-
     # Prevent renaming to existing nickname.
-    existing_names = [naming.nickname for naming in preferences.naming if naming.role_string != role_string]
+    existing_names = [naming.nickname for naming in get_preferences().naming if naming.role_string != role_string]
     if new_nickname in existing_names:
         # Revert to previous.
         self["nickname"] = self.prev_nickname
