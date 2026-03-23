@@ -2,7 +2,7 @@ import re
 
 import bpy
 
-from .xr_core.actions import all_role_strings
+from .xr_core.actions import all_role_strings, reformat_role_string
 from .. import __package__ as base_package
 
 
@@ -21,24 +21,17 @@ def initialize_preferences(reconform_existing: bool = False):
     preferences = get_preferences()
 
     for role_string in all_role_strings:
+        # Skip existing.
         if role_string in [n.role_string for n in preferences.naming]:
             continue
 
-        # Reformat left/right nicknames to work better with bone symmetry.
-        new_nn = role_string
-        if re.match(f"(l(eft)?)|(r(ight)?)_", new_nn):
-            new_nn = re.sub(r"([lr])((eft)|(ight))?_(.+)", r"\5.\1", new_nn)
+        # Better role string names with .r, .l, etc.
+        default_nn = reformat_role_string(role_string)
 
         naming: PreferenceNaming = preferences.naming.add()
         naming.role_string = role_string
-        naming["nickname"] = new_nn  # Square brackets to prevent recursive update.
-        naming.prev_nickname = new_nn
-
-        # Reconform existing.
-        if reconform_existing:
-            for obj in bpy.data.objects:
-                if obj.get("role_string") == role_string:
-                    obj.name = new_nn
+        naming["nickname"] = default_nn
+        naming.prev_nickname = default_nn
 
 
 class ResetNicknamesOperator(bpy.types.Operator):
@@ -54,9 +47,14 @@ class ResetNicknamesOperator(bpy.types.Operator):
 
 def preference_nickname_change(self, _):
     role_string = self.role_string
-    new_nickname = (
-        self.nickname
-    )  # This will have been updated by the time the callback happens.
+    default_name = reformat_role_string(role_string)
+
+    # This will have been updated by the time the callback happens.
+    new_nickname = self.nickname
+
+    # Black nicknames reset to default.
+    if new_nickname == "":
+        self["nickname"] = default_name
 
     # Prevent renaming to existing nickname.
     existing_names = [
@@ -68,15 +66,15 @@ def preference_nickname_change(self, _):
         # Revert to previous.
         self["nickname"] = self.prev_nickname
         raise ValueError(
-            f"Cannot rename {role_string} to an existing nickname: {new_nickname}."
+            f"Cannot rename {role_string} to an existing nickname or object: {new_nickname}."
         )
 
-    # Nickname cannot be set to a role_string, unless it's the tracker's own.
-    if new_nickname in all_role_strings:
+    # Nickname cannot be set to a default, unless it's the tracker's own.
+    if new_nickname in [reformat_role_string(rs) for rs in all_role_strings]:
         # If we are renaming to another's.
-        if new_nickname != role_string:
-            # Revert to previous nickname (or role string).
-            self["nickname"] = self.prev_nickname or self.role_string
+        if new_nickname != default_name:
+            # Revert to previous nickname (or default).
+            self["nickname"] = self.prev_nickname or default_name
             raise ValueError(
                 "You cannot use the real name of different tracker as a nickname."
             )

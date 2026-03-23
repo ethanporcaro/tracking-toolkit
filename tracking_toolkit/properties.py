@@ -1,24 +1,29 @@
 import bpy
 
-from .xr_core.actions import all_role_strings
+from .xr_core.actions import all_role_strings, reformat_role_string
 
 
 def tracker_nickname_change(self, _):
     role_string = self.role_string
-    new_nickname = (
-        self.nickname
-    )  # This will have been updated by the time the callback happens.
+    default_name = reformat_role_string(role_string)
+
+    # This will have been updated by the time the callback happens.
+    new_nickname = self.nickname
+
+    # Black nicknames reset to default.
+    if new_nickname == "":
+        self["nickname"] = default_name
 
     # Avoid trying to access objects on init.
     if not hasattr(bpy.data, "objects"):
         return
 
-    # Nickname cannot be set to a role_string, unless it's the tracker's own.
-    if new_nickname in all_role_strings:
+    # Nickname cannot be set to a default, unless it's the tracker's own.
+    if new_nickname in [reformat_role_string(rs) for rs in all_role_strings]:
         # If we are renaming to another's.
-        if new_nickname != role_string:
-            # Revert to previous nickname (or role string).
-            self["nickname"] = self.prev_nickname or self.role_string
+        if new_nickname != default_name:
+            # Revert to previous nickname (or default).
+            self["nickname"] = self.prev_nickname or default_name
 
             raise ValueError(
                 "You cannot use the real name of different tracker as a nickname."
@@ -34,7 +39,7 @@ def tracker_nickname_change(self, _):
             self["nickname"] = self.prev_nickname or self.role_string
 
             raise ValueError(
-                f"Cannot rename {role_string} to an existing nickname: {new_nickname}."
+                f"Cannot rename {role_string} to an existing nickname or object: {new_nickname}."
             )
 
     if bpy.context.scene.XRContext.use_bones:
