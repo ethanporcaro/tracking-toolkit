@@ -8,6 +8,7 @@ from .tracking_toolkit.xr_core import actions, tracking, core
 if _needs_reload:
     import importlib
 
+    utils = importlib.reload(utils)
     actions = importlib.reload(actions)
     properties = importlib.reload(properties)
     preferences = importlib.reload(preferences)
@@ -15,7 +16,6 @@ if _needs_reload:
     ui = importlib.reload(ui)
     tracking = importlib.reload(tracking)
     core = importlib.reload(core)
-    utils = importlib.reload(utils)
 
     print("Tracking Toolkit Reloaded")
 

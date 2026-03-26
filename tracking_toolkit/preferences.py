@@ -1,5 +1,3 @@
-import re
-
 import bpy
 
 from .xr_core.actions import all_role_strings, reformat_role_string
@@ -13,7 +11,7 @@ def get_preferences() -> "Preferences | bpy.types.AddonPreferences":
     return bpy.context.preferences.addons[base_package].preferences
 
 
-def initialize_preferences(reconform_existing: bool = False):
+def initialize_preferences():
     """
     Reset nickname preferences to defaults.
     Optionally reconform_existing existing (can only be called from an operator).
