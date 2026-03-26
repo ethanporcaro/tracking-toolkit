@@ -160,13 +160,14 @@ def get_timer_items():
     ]
 
 
+class XRState(bpy.types.PropertyGroup):
+    enabled: bpy.props.BoolProperty(name="OpenXR active", default=False)
+    recording: bpy.props.BoolProperty(name="OpenXR recording", default=False)
+    countdown: bpy.props.IntProperty(name="Countdown value")
+    runtime: bpy.props.StringProperty(name="OpenXR runtime name", default="Unknown")
+
+
 class XRContext(bpy.types.PropertyGroup):
-    enabled: bpy.props.BoolProperty(
-        name="OpenXR active", default=False, options={"SKIP_SAVE"}
-    )
-    recording: bpy.props.BoolProperty(
-        name="OpenXR recording", default=False, options={"SKIP_SAVE"}
-    )
     use_bones: bpy.props.BoolProperty(
         name="Use Bone References", default=True, update=use_bones_change_callback
     )
@@ -175,7 +176,6 @@ class XRContext(bpy.types.PropertyGroup):
     selected_tracker: bpy.props.IntProperty(
         name="Selected tracker", default=0, update=selected_tracker_change_callback
     )
-    runtime: bpy.props.StringProperty(name="OpenXR runtime name", default="Unknown")
 
     timer: bpy.props.EnumProperty(
         name="Time length", items=get_timer_items(), default="0"
@@ -183,4 +183,3 @@ class XRContext(bpy.types.PropertyGroup):
     timer_custom: bpy.props.IntProperty(
         name="Custom time length", default=15, min=0, max=60, step=5
     )
-    countdown: bpy.props.IntProperty(name="Countdown value", options={"SKIP_SAVE"})

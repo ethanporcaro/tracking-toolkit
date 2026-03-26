@@ -14,6 +14,14 @@ def get_context() -> "XRContext":
     return bpy.context.scene.XRContext
 
 
+def get_state() -> "XRState":
+    """
+    Get temporary XRState properties instance.
+    """
+    # noinspection PyUnresolvedReferences
+    return bpy.context.window_manager.XRState
+
+
 class TempModeContext:
     """
     Context class for temporarily setting mode, then restoring it after.

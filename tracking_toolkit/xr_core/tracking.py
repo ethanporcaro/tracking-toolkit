@@ -7,7 +7,7 @@ from bpy_extras import anim_utils
 from .actions import vive_role_strings
 from .core import start_xr, tick_xr, stop_xr
 from ..preferences import get_preferences
-from ..utils import get_context
+from ..utils import get_context, get_state
 
 # Shared variables
 data_buffer = []
@@ -16,7 +16,9 @@ should_stop = False
 
 def _update_tracker_list(poses):
     xr_context = get_context()
-    if not xr_context.enabled:
+    xr_state = get_state()
+
+    if not xr_state.enabled:
         return
 
     # Check if trackers changed.
@@ -375,13 +377,13 @@ def _insert_action():
 
 
 def _xr_countdown_timer():
-    xr_context = get_context()
+    xr_state = get_state()
 
-    if not xr_context.recording:
+    if not xr_state.recording:
         print("OpenXR Countdown Canceled")
         return None
 
-    xr_context.countdown -= 1
+    xr_state.countdown -= 1
 
     # Update UI to show status.
     for area in bpy.context.screen.areas:
@@ -389,17 +391,18 @@ def _xr_countdown_timer():
 
     # Clear buffer, so the recorded data starts now.
     # Use < 1 in case it somehow goes negative.
-    if xr_context.countdown < 1:
+    if xr_state.countdown < 1:
         print("OpenXR Recording Started")
         _clear_buffer()
         return None
 
-    print(f"OpenXR recording starting in {xr_context.countdown}s")
+    print(f"OpenXR recording starting in {xr_state.countdown}s")
     return 1
 
 
 def start_recording():
     xr_context = get_context()
+    xr_state = get_state()
 
     # Get timer delay.
     delay_val = xr_context.timer
@@ -408,23 +411,23 @@ def start_recording():
     else:
         delay = int(delay_val)
 
-    xr_context.countdown = (
+    xr_state.countdown = (
         delay + 1
     )  # Add one since the value is decremented at the start of the timer.
 
     if not bpy.app.timers.is_registered(_xr_countdown_timer):
         bpy.app.timers.register(_xr_countdown_timer)
 
-    xr_context.recording = True
+    xr_state.recording = True
     print("OpenXR Countdown Started")
 
 
 def stop_recording():
-    xr_context = get_context()
+    xr_state = get_state()
 
-    xr_context.recording = False
+    xr_state.recording = False
 
-    if xr_context.countdown > 0:
+    if xr_state.countdown > 0:
         return  # Recording was probably canceled.
 
     _insert_action()
@@ -436,7 +439,7 @@ def stop_recording():
 def start_preview():
     _clear_buffer()
     start_xr()
-    get_context().enabled = True
+    get_state().enabled = True
 
     if not bpy.app.timers.is_registered(_xr_tick_timer):
         bpy.app.timers.register(_xr_tick_timer)
@@ -460,8 +463,8 @@ def stop_preview():
     stop_xr()
     _clear_buffer()
 
-    xr_context = get_context()
-    xr_context.enabled = False
-    xr_context.recording = False
+    xr_state = get_state()
+    xr_state.enabled = False
+    xr_state.recording = False
 
     print("OpenXR Preview Stopped")

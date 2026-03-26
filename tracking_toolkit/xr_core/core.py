@@ -104,7 +104,7 @@ def start_xr():
     # Save the runtime's name.
     properties = xr.get_instance_properties(context.instance)
     runtime_name = properties.runtime_name.decode()
-    bpy.context.scene.XRContext.runtime = runtime_name
+    bpy.context.window_manager.XRState.runtime = runtime_name
     print(f"Using {runtime_name} as OpenXR runtime.")
 
     # Setup actions

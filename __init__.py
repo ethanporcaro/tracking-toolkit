@@ -53,6 +53,7 @@ def register():
     print("Loading Tracking Toolkit...")
 
     # Props
+    bpy.utils.register_class(properties.XRState)
     bpy.utils.register_class(properties.XRTrackerNaming)
     bpy.utils.register_class(properties.XRTracker)
     bpy.utils.register_class(properties.XRContext)
@@ -69,6 +70,7 @@ def register():
     bpy.utils.register_class(operators.ToggleRecordOperator)
 
     # Contexts
+    bpy.types.WindowManager.XRState = bpy.props.PointerProperty(type=properties.XRState)
     bpy.types.Scene.XRContext = bpy.props.PointerProperty(type=properties.XRContext)
 
     # UI
@@ -95,6 +97,7 @@ def unregister():
 
     # Contexts
     del bpy.types.Scene.XRContext
+    del bpy.types.WindowManager.XRState
 
     # Classes
     bpy.utils.unregister_class(operators.ToggleRecordOperator)
@@ -110,6 +113,7 @@ def unregister():
     bpy.utils.unregister_class(properties.XRContext)
     bpy.utils.unregister_class(properties.XRTracker)
     bpy.utils.unregister_class(properties.XRTrackerNaming)
+    bpy.utils.unregister_class(properties.XRState)
 
     # Handlers
     if scene_update_callback in bpy.app.handlers.depsgraph_update_post:
