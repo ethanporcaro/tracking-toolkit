@@ -313,7 +313,7 @@ def _insert_action():
             if not action:  # We are in a loop, so ensure it's only created once.
                 arm = bpy.data.objects.get("XR Trackers")
                 if not arm:
-                    raise ValueError("Could not find armature")  # FIXME: Handle this.
+                    print("Could not find armature. Data was not applied.")
 
                 action = _create_action(arm, time_string)
 
@@ -321,6 +321,10 @@ def _insert_action():
         # The action name will be prefixed with the tracker name to prevent conflicts.
         else:
             empty = bpy.data.objects.get(nickname)
+            if not empty:
+                print(f"No references found for {nickname}. Skipping.")
+                continue
+
             action = _create_action(empty, f"{tracker_name}_{time_string}")
 
         # Determine the property names for the fcurve channels we will put animation data into.

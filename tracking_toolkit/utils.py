@@ -22,6 +22,38 @@ def get_state() -> "XRState":
     return bpy.context.window_manager.XRState
 
 
+def check_refs() -> bool:
+    """
+    Check if references exist for all trackers.
+    """
+
+    xr_context = get_context()
+
+    # Check for armature or empty root.
+    if xr_context.use_bones:
+        root = bpy.data.objects.get("XR Trackers")
+
+    else:
+        root = bpy.data.objects.get("XR Root")
+
+    if not root:
+        return False
+
+    for tracker in xr_context.trackers:
+        if xr_context.use_bones:
+            bone = root.pose.bones.get(tracker.naming.nickname)
+            if not bone:
+                return False
+
+        else:
+            empty_tracker = bpy.data.objects.get(tracker.naming.nickname)
+            empty_offset = bpy.data.objects.get(f"{tracker.naming.nickname} Offset")
+            if not empty_tracker or not empty_offset:
+                return False
+
+    return True
+
+
 class TempModeContext:
     """
     Context class for temporarily setting mode, then restoring it after.
@@ -273,7 +305,7 @@ def convert_bones_to_empties():
 
     arm = bpy.data.objects.get("XR Trackers")
     if not arm:
-        # FIXME: This can probable be handled better.
+        print("Armature not found. Conversion cannot proceed.")
         return
 
     # Create empties to convert data to.
@@ -288,11 +320,13 @@ def convert_bones_to_empties():
 
             bone = arm.pose.bones.get(nickname)
             if not bone:
-                raise RuntimeError(f"Bone {nickname} does not exist.")
+                print(f"Bone {nickname} does not exist. Skipping.")
+                continue
 
             empty = bpy.data.objects.get(nickname)
             if not empty:
-                raise RuntimeError(f"Empty {nickname} does not exist.")
+                print(f"Empty {nickname} does not exist.. Skipping.")
+                continue
 
             empty.animation_data_create()
 
@@ -360,7 +394,8 @@ def convert_empties_to_bones():
 
         bone = arm.pose.bones.get(nickname)
         if not bone:
-            raise RuntimeError(f"Bone {nickname} does not exist.")
+            print(f"Bone {nickname} does not exist. Skipping.")
+            continue
 
         # On the first time, create the armature action.
         # We do it here since we know the action name now.

@@ -1,6 +1,7 @@
 import bpy
 
 from .utils import (
+    check_refs,
     create_bone_references,
     create_empty_references,
     get_context,
@@ -28,6 +29,9 @@ class ToggleRecordOperator(bpy.types.Operator):
         if xr_state.recording:
             stop_recording()
         else:
+            if not check_refs():
+                self.report({"WARNING"}, "Not all references exist. Expect data loss.")
+
             start_recording()
 
         return {"FINISHED"}
