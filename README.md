@@ -1,5 +1,22 @@
 ![images/cover.png](images/cover.png)
 
+# Compatability
+
+Tracking Toolkit uses OpenXR to connect to VR devices and trackers.
+OpenXR is not something you need to download by itself. 
+It is integrated with a 'runtime' (the software you use with your VR headset such as SteamVR).
+
+Blender uses OpenXR for the [VR Scene inspector](https://docs.blender.org/manual/en/latest/addons/3d_view/vr_scene_inspection.html).
+
+Tracking Toolkit is compatible with all OpenXR runtimes that support headless mode.
+SteamVR supports this mode and can be used with many headsets.
+
+You can find full compatibility details for headless mode [here](https://github.khronos.org/OpenXR-Inventory/runtime_extension_support.html#XR_MND_headless).
+
+I do not have every VR hardware device, so I cannot test everything. If you want to see support for something, 
+I'd be happy to work closely with you to find a solution.
+If you have any questions, please open an issue.
+
 # Usage Guide
 
 Here is a step-by-step guide for the majority of use-cases.
@@ -34,7 +51,9 @@ Begin by clicking the `Start/Connect OpenXR` button.
 This will open your OpenXR runtime if it isn't open already, but I recommend opening it first.
 
 After connecting OpenXR, you will see connected controllers and trackers show in a list. 
-If these controllers are powered off or disconnected, they will be hidden until they are connected again.
+Even if controllers are disconnected, they will still remain on the list.
+
+You can click the eyeball icon to show and hide the trackers in the viewport.
 
 [<img src="images/tracker-list.png" width="400px"/>](images/tracker-list.png)
 
@@ -52,7 +71,6 @@ There are a few main buttons on the Tracking Toolkit panel:
 ### Create References
 
 Pressing `Create References` will create two Blender objects for each tracked device.
-Creating references is generally undo-able, but be careful when overwriting existing references.
 
 #### Target object
 
@@ -65,20 +83,17 @@ The 'offset' is a child of the 'target' and **should be moved** instead of the '
 
 ## Recording
 
-You can press the `Start Recording` button to start writing keyframes to the 'tracker' objects.
+You can press the `Start Recording` button to start writing keyframes to the tracker objects.
 
-> 🚨 When you start a recording, your old recording will be erased.
-> 
-> I recommend using `File > Save Incremental` in Blender's menu each time you make a new take.
-
-The data is recorded in subframes and won't necessarily match the framerate in Blender's Output Properties. 
-Keyframe data is saved as fast as OpenXR provides it (usually the refresh rate of your VR headset). 
+> ⚠️ When you start a recording, your old recording will be pushed onto a new NLA track and muted.
 
 When OpenXR is connected, the tracker previews will max out at 60 fps in Blender's scene view. 
-However, the data is saved at full precision when playing it back.
 
-When you press the space bar, the realtime tracking will temporarily pause and the recorded take will play.
+The actual data will be recorded at your scene framerate. 
+You can select a different framerate in the addon preferences.
+If your computer or trackers can't keep up, samples will be linearly interpolated.
 
+When you press the space bar, realtime tracking will temporarily pause and the recorded take will play.
 
 ## Troubleshooting
 
@@ -113,7 +128,7 @@ If you have no headset attached at all, you may need to enable the Mock HMD driv
 
 # Credits
 
-**Huge** credits to [shteeve](https://blenderartists.org/u/shteeve) and [toyxyz](https://blenderartists.org/u/toyxyz) at [blenderartists.org](https://blenderartists.org/) for the [research and basis of this extension](https://blenderartists.org/t/openvr-tracker-streaming/1236428).
+Big shout out to [shteeve](https://blenderartists.org/u/shteeve) and [toyxyz](https://blenderartists.org/u/toyxyz) at [blenderartists.org](https://blenderartists.org/) for [researching the extension's idea](https://blenderartists.org/t/openvr-tracker-streaming/1236428).
 
 Also, thank you to [Christopher Bruns](https://github.com/cmbruns) for the amazing [pyopenxr](https://github.com/cmbruns/pyopenxr) library.
 
@@ -135,7 +150,17 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 ```
 
-# Projects made with Tracking Toolkit
+# Projects using Tracking Toolkit
 
 * ["Liam Right"](https://www.youtube.com/watch?v=5hOd7XADGaM&list=PLrBKkYQIF33SXziwFjMSMQx_r_6CZ_spu) by me (Ethan Porcaro)
 * Yours? (Let me know!)
+
+# Contributions
+
+Tracking Toolkit will always remain free.
+
+Contributions, both in development and monetary form, are welcome.
+
+If you want to add code, see DEVELOPMENT.md.
+
+I have both [Ko-fi](https://ko-fi.com/varrett) and [Patreon](https://www.patreon.com/c/Varrett) pages for donations.
