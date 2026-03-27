@@ -52,7 +52,7 @@ vive_tracker_action_data = [
     for role in vive_role_strings
 ]
 
-all_role_strings = ["head", "l_hand", "r_hand", *vive_role_strings]
+all_role_strings = ["head", "left_hand", "right_hand", *vive_role_strings]
 
 
 def reformat_role_string(role_string: str):

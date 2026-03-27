@@ -39,7 +39,7 @@ class ResetNicknamesOperator(bpy.types.Operator):
 
     def execute(self, context):
         get_preferences().naming.clear()
-        initialize_preferences(reconform_existing=True)
+        initialize_preferences()
         return {"FINISHED"}
 
 

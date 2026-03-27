@@ -67,7 +67,8 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         layout.label(text="Headset must be awake to find trackers.")
 
         # SteamVR specific warnings.
-        if xr_state.runtime == "SteamVR/OpenXR":
+        # Use startswith because SteamVR sometimes appends additional text.
+        if xr_state.runtime.startswith("SteamVR/OpenXR"):
             # Some users will just be using trackers and not wearing the headset.
             # If this happens, the XR state won't become XR_FOCUSED, and we won't get data.
             # In the future, we could somehow check if it's disabled based on tracker movement.
