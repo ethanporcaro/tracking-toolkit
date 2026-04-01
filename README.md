@@ -37,19 +37,22 @@ The list below will populate with names of detected controllers/trackers.
 3) Press `Create References` to add the detected trackers to your scene. 
 This will create bones, but you can toggle the checkbox to create empties instead.
 
-[<img src="images/panel-quickstart.png" width="400px"/>](images/panel-quickstart.png)
-
 4) At this point, a large `Start Recording` button will be visible. 
 When pressed, it will record the tracker's positions until you press stop.
 Existing recordings will be pushed down onto a new NLA strip and muted.
 
-[<img src="images/panel-record.png" width="400px"/>](images/panel-record.png)
+<p>
+<img src="images/panel-quickstart.png" height="400px"/>
+<img src="images/panel-record.png" height="400px"/>
+</p>
 
 ## Additional Information
 
 <details>
 
 <summary>Tracker List</summary>
+
+### Tracker List
 
 When new trackers are detected, they will appear on the list.
 You can press `Create References` again to add them to the scene.
@@ -71,6 +74,8 @@ You can also set nicknames in the addon preferences that apply to all future fil
 <details>
 
 <summary>References</summary>
+
+### References
 
 References represent your tracker in the scene.
 
@@ -94,6 +99,8 @@ Objects or cameras in your scene should be constrained to this offset, rather th
 <details>
 
 <summary>Recording</summary>
+
+### Recording
 
 By default, trackers will be recorded at your scene's FPS.
 You can override this in the addon preferences.
@@ -120,7 +127,9 @@ You may need to start with a fresh scene in those cases.
 
 <details>
 
-<summary>FAQ</summary>
+<summary>Frequently Asked Questions</summary>
+
+### FAQ
 
 **Q:** How many trackers do I need?
 
@@ -149,6 +158,12 @@ Technical Art & Project Management [John Kraus](https://jrk.art).
 
 Special thanks to [Christopher Bruns](https://github.com/cmbruns) for the amazing [pyopenxr](https://github.com/cmbruns/pyopenxr) library.
 
+# Contributions
+
+Tracking Toolkit will always remain free, and contributions are welcome. You can donate on [Ko-fi](https://ko-fi.com/varrett) and [Patreon](https://www.patreon.com/c/Varrett).
+
+If you want to assist with development, see DEVELOPMENT.md.
+
 # License
 
 This extension is licensed under [GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
@@ -171,13 +186,3 @@ You should have received a copy of the GNU General Public License along with thi
 
 * ["Liam Right"](https://www.youtube.com/watch?v=5hOd7XADGaM&list=PLrBKkYQIF33SXziwFjMSMQx_r_6CZ_spu) by Ethan Porcaro
 * Yours? (Let me know!)
-
-# Contributions
-
-Tracking Toolkit will always remain free.
-
-Contributions, both in development and monetary form, are welcome.
-
-If you want to add code, see DEVELOPMENT.md.
-
-I have both [Ko-fi](https://ko-fi.com/varrett) and [Patreon](https://www.patreon.com/c/Varrett) pages for donations.
