@@ -3,10 +3,12 @@ import ctypes.wintypes
 import time
 
 import bpy
+import gpu
 import bpy_extras
 import mathutils
 import xr
 from xr.utils.gl import ContextObject
+from xr.utils.gl.glfw_util import GLFWOffscreenContextProvider
 
 from .actions import default_action_data, vive_tracker_action_data
 
@@ -22,6 +24,7 @@ def _pose_to_mat(pose):
     return mat_world @ mat
 
 
+use_compatibility_mode = False
 context: ContextObject | None = None
 spaces = {}
 
@@ -60,21 +63,38 @@ def _headless_enter(self):
 def start_xr():
     print("Starting XR Tracking")
 
+    global use_compatibility_mode
+    use_compatibility_mode = gpu.platform.backend_type_get() == "OPENGL"
+
     available_extensions = xr.enumerate_instance_extension_properties()
 
-    required_extensions = [
-        xr.MND_HEADLESS_EXTENSION_NAME,
-        xr.KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME,
-    ]
+    required_extensions = []
+
+    # Headless mode must be supported to use Blender's OpenGL.
+    # This is because the OpenXR OpenGL will conflict with Blender's and cause crashes.
+    if use_compatibility_mode:
+        if xr.MND_HEADLESS_EXTENSION_NAME not in available_extensions:
+            raise RuntimeError(
+                "Your runtime does not support headless mode. "
+                "You must use Vulkan as Blender's Display Graphics Backend."
+            )
+
+        print("Using headless compatability mode.")
+
+        required_extensions.extend(
+            [
+                xr.MND_HEADLESS_EXTENSION_NAME,
+                xr.KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME,
+            ]
+        )
+
+    # Vulkan as Blender's backend is safe for wide compatibility.
+    else:
+        required_extensions.extend([xr.KHR_OPENGL_ENABLE_EXTENSION_NAME])
+
     for ext in required_extensions:
         if ext not in available_extensions:
-            if ext == xr.MND_HEADLESS_EXTENSION_NAME:
-                raise RuntimeError(
-                    "Your runtime does not support headless mode. "
-                    "Consult the user guide for alternatives."
-                )
-
-            raise RuntimeError(f"Extension {ext} not supported.")
+            raise RuntimeError(f"Extension {ext} not supported by your runtime.")
 
     enabled_extensions = required_extensions.copy()
 
@@ -88,11 +108,20 @@ def start_xr():
     # Instantiate the headless context.
 
     global context
+
     context_obj = ContextObject
-    context_obj.__enter__ = _headless_enter
-    # noinspection PyTypeChecker
+    provider = None
+
+    # Headless context.
+    if use_compatibility_mode:
+        context_obj.__enter__ = _headless_enter
+
+    # OpenGL context.
+    else:
+        provider = GLFWOffscreenContextProvider()
+
     context = context_obj(
-        context_provider=None,
+        context_provider=provider,
         instance_create_info=xr.InstanceCreateInfo(
             enabled_extension_names=enabled_extensions
         ),
@@ -255,17 +284,35 @@ def tick_xr():
         subaction_path=ctypes.c_uint64(xr.NULL_PATH),
     )
 
-    xr_time = _get_time()
+    frame_state = _poll_xr()
 
-    # Headless "frame" loop.
-    _poll_xr()
     xr.begin_frame(context.session)
-    xr.end_frame(
-        context.session,
-        frame_end_info=xr.FrameEndInfo(
-            display_time=xr_time,
-        ),
-    )
+
+    # Headless 'frame'.
+    if use_compatibility_mode:
+        xr_time = _get_time()
+
+        xr.end_frame(
+            context.session,
+            frame_end_info=xr.FrameEndInfo(
+                display_time=xr_time,
+            ),
+        )
+
+    # OpenGL frame.
+    else:
+        xr_time = frame_state.predicted_display_time
+
+        context.render_layers = []
+        context.graphics.make_current()
+        xr.end_frame(
+            context.session,
+            frame_end_info=xr.FrameEndInfo(
+                display_time=xr_time,
+                environment_blend_mode=context.environment_blend_mode,
+                layers=context.render_layers,
+            ),
+        )
 
     if context.session_state == xr.SessionState.FOCUSED:
         try:
