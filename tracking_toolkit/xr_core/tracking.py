@@ -290,10 +290,16 @@ def _insert_action():
     # Format SMPTE timecode.
     # Also calculate the frame based on the current microsecond/scene time.
     # The frame is truncated down.
+
     time_string = start_time.strftime("%H:%M:%S")
     second_offset = start_time.microsecond / (1000 * 1000)
-    frame_offset = int(second_offset * record_fps)
-    time_string += f":{frame_offset}"
+    frame_offset_str = str(int(second_offset * record_fps))
+
+    # Pad to at least two digits.
+    if len(frame_offset_str) == 1:
+        frame_offset_str = f"0{frame_offset_str}"
+
+    time_string += f":{frame_offset_str}"
 
     print(f"Using SMPTE timecode: {time_string}")
 
