@@ -3,8 +3,10 @@
 Tracking Toolkit allows you to view and record [OpenXR](https://www.khronos.org/openxr/) devices inside Blender
 with NLA integration and [SMPTE timecode](https://en.wikipedia.org/wiki/SMPTE_timecode).
 
-Tracking Toolkit allows camera/object tracking with high degrees of clarity,
+It allows camera/object tracking with high degrees of clarity,
 and can also track the movement of actors for motion capture.
+
+You can view the [demonstration video](https://youtu.be/W6DTAmQiJ4Q) on YouTube.
 
 If you'd like to see support for a new device, let me know! You can open an issue for any questions.
 
