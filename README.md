@@ -81,7 +81,7 @@ References represent your tracker in the scene.
 
 These will either be bones in an armature, or empties. 
 You can toggle `Use Bones For Trackers` checkbox at any time to change this.
-Your latest recording will be transferred when switching between these.
+All your existing takes/actions will be converted.
 
 Each tracker will have two references:
 

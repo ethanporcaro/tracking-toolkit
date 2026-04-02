@@ -312,9 +312,30 @@ def convert_bones_to_empties():
     create_empty_references()
 
     animation_data = arm.animation_data
-    if animation_data and animation_data.action:
-        arm_action = animation_data.action
+    if not animation_data:
+        print(f"Armature does have animation data. Conversion cannot proceed.")
+        return
 
+    # Convert all strips on all tracks.
+
+    had_active_action = False
+    actions_to_process = []
+
+    # Active action.
+    if animation_data.action:
+        had_active_action = True
+        actions_to_process.append(animation_data.action)
+
+    # NLA strips.
+    for track in animation_data.nla_tracks:
+        for strip in track.strips:
+            if not strip.action:
+                print(f"Strip {strip.name} does have action. Skipping.")
+                continue
+
+            actions_to_process.append(strip.action)
+
+    for i, arm_action in enumerate(actions_to_process):
         for tracker in xr_context.trackers:
             nickname = tracker.naming.nickname
 
@@ -331,8 +352,18 @@ def convert_bones_to_empties():
             empty.animation_data_create()
 
             # Copy action and rename channels.
+
+            empty_action_name = f"{nickname}_{arm_action.name}"
+
+            # Ensure this action doesn't already exist,
+            # since a user might have deleted a track leaving dirty references.
+            empty_action = bpy.data.actions.get(empty_action_name)
+            if empty_action:
+                print(f"Overwriting existing action: {empty_action_name}")
+                bpy.data.actions.remove(empty_action)
+
             empty_action = arm_action.copy()
-            empty_action.name = f"{nickname}_{arm_action.name}"
+            empty_action.name = empty_action_name
 
             fcurves = anim_utils.action_get_channelbag_for_slot(
                 empty_action, empty_action.slots[0]
@@ -346,8 +377,25 @@ def convert_bones_to_empties():
                 new_path = re.sub(r".+\.([^.]+)$", r"\1", fcurve.data_path)
                 fcurve.data_path = new_path
 
-            empty.animation_data.action = empty_action
-            empty.animation_data.action_slot = empty_action.slots[0]
+            # If the armature had an active (non-strip) action, set it as active.
+            if had_active_action and i == 0:
+                empty.animation_data.action = empty_action
+                empty.animation_data.action_slot = empty_action.slots[0]
+
+            # Otherwise, push it down.
+            else:
+                # Push onto new track.
+                empty_track = empty.animation_data.nla_tracks.new()
+                empty_track.name = empty_action.name
+                empty_track.mute = True  # Assume all are muted.
+
+                # Create new strip.
+                empty_track.strips.new(
+                    empty_action.name, int(empty_action.frame_range[0]), empty_action
+                )
+
+        # Clean up.
+        bpy.data.actions.remove(arm_action)
 
     # Delete bones.
     with TempModeContext("OBJECT"):
@@ -387,57 +435,97 @@ def convert_empties_to_bones():
             print(f"Empty {nickname} does have animation data. Skipping.")
             continue
 
-        empty_action = animation_data.action
-        if not empty_action:
-            print(f"Empty {nickname} does have action. Skipping.")
-            continue
-
         bone = arm.pose.bones.get(nickname)
         if not bone:
             print(f"Bone {nickname} does not exist. Skipping.")
             continue
 
-        # On the first time, create the armature action.
-        # We do it here since we know the action name now.
-        arm_action = arm.animation_data.action
-        if not arm_action:
+        # Convert all strips on all tracks.
+
+        had_active_action = False
+        actions_to_process = []
+
+        # Active action.
+        if animation_data.action:
+            had_active_action = True
+            actions_to_process.append(animation_data.action)
+
+        # NLA strips.
+        for track in animation_data.nla_tracks:
+            for strip in track.strips:
+                if not strip.action:
+                    print(f"Strip {strip.name} does have action. Skipping.")
+                    continue
+
+                actions_to_process.append(strip.action)
+
+        for i, empty_action in enumerate(actions_to_process):
+            # Create a new action for the armature.
+            # This action will hold data for all bones (trackers).
+            # Skip if the action has already been created when processing a previous tracker.
+            # The action name is the timecode.
             arm_action_name = empty_action.name.replace(f"{nickname}_", "")
-            arm_action = bpy.data.actions.new(name=arm_action_name)
-            arm.animation_data.action = arm_action
-            arm.animation_data.action_slot = arm_action.slots.new("OBJECT", "MOCAP")
+            arm_action = bpy.data.actions.get(arm_action_name)
 
-        # Get fcurves for arm and empty.
-        # Add copy of empty fcurve to arm with the reformatted name.
+            if not arm_action:
+                arm_action = bpy.data.actions.new(name=arm_action_name)
+                arm_action.slots.new("OBJECT", "MOCAP")
 
-        arm_fcurves = anim_utils.action_ensure_channelbag_for_slot(
-            arm_action, arm_action.slots[0]
-        ).fcurves
+                # If the empties had an active (non-strip) action, set it as active.
+                if had_active_action and i == 0:
+                    arm.animation_data.action = arm_action
+                    arm.animation_data.action_slot = arm_action.slots[0]
 
-        empty_fcurves = anim_utils.action_get_channelbag_for_slot(
-            empty_action, empty_action.slots[0]
-        ).fcurves
+                # Otherwise, push it down.
+                else:
+                    # Push onto new track.
+                    arm_track = arm.animation_data.nla_tracks.new()
+                    arm_track.name = arm_action.name
+                    arm_track.mute = True  # Assume all are muted.
 
-        for empty_fcurve in empty_fcurves:
-            new_path = f'pose.bones["{nickname}"].{empty_fcurve.data_path}'
+                    # Create new strip.
+                    strip = arm_track.strips.new(
+                        arm_action.name, int(arm_action.frame_range[0]), arm_action
+                    )
+                    strip.frame_end = (
+                        empty_action.frame_range[1] - empty_action.frame_range[0]
+                    )
 
-            # Remove existing fcurve if present.
-            arm_fcurve = arm_fcurves.find(new_path, index=empty_fcurve.array_index)
-            if arm_fcurve:
-                arm_fcurves.remove(arm_fcurve)
+            # Get fcurves for arm and empty.
+            # Add copy of empty fcurve to arm with the reformatted name.
 
-            arm_fcurve = arm_fcurves.new(
-                data_path=new_path, index=empty_fcurve.array_index
-            )
+            arm_fcurves = anim_utils.action_ensure_channelbag_for_slot(
+                arm_action, arm_action.slots[0]
+            ).fcurves
 
-            # Copy over data.
-            key_coords = []
-            for kp in empty_fcurve.keyframe_points:
-                key_coords.append(kp.co[0])  # Time.
-                key_coords.append(kp.co[1])  # Value.
+            empty_fcurves = anim_utils.action_get_channelbag_for_slot(
+                empty_action, empty_action.slots[0]
+            ).fcurves
 
-            arm_fcurve.keyframe_points.add(len(key_coords) // 2)
-            arm_fcurve.keyframe_points.foreach_set("co", key_coords)
-            arm_fcurve.update()
+            for empty_fcurve in empty_fcurves:
+                new_path = f'pose.bones["{nickname}"].{empty_fcurve.data_path}'
+
+                # Remove existing fcurve if present.
+                arm_fcurve = arm_fcurves.find(new_path, index=empty_fcurve.array_index)
+                if arm_fcurve:
+                    arm_fcurves.remove(arm_fcurve)
+
+                arm_fcurve = arm_fcurves.new(
+                    data_path=new_path, index=empty_fcurve.array_index
+                )
+
+                # Copy over data.
+                key_coords = []
+                for kp in empty_fcurve.keyframe_points:
+                    key_coords.append(kp.co[0])  # Time.
+                    key_coords.append(kp.co[1])  # Value.
+
+                arm_fcurve.keyframe_points.add(len(key_coords) // 2)
+                arm_fcurve.keyframe_points.foreach_set("co", key_coords)
+                arm_fcurve.update()
+
+            # Clean up.
+            bpy.data.actions.remove(empty_action)
 
     # Delete empties.
     with TempModeContext("OBJECT"):

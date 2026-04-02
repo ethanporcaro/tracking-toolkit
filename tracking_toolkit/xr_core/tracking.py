@@ -325,7 +325,7 @@ def _insert_action():
                 print(f"No references found for {nickname}. Skipping.")
                 continue
 
-            action = _create_action(empty, f"{tracker_name}_{time_string}")
+            action = _create_action(empty, f"{nickname}_{time_string}")
 
         # Determine the property names for the fcurve channels we will put animation data into.
         # Armature actions are handled a little differently.
