@@ -14,7 +14,7 @@ Additionally, you will need an OpenXR runtime and a device to go with it.
 |-----------|---------------------------|--------|--------|
 | SteamVR   | Valve Index, HTC VIVE     | ✓      | ✓      |
 | Meta Link | Meta Quest 3, Oculus Rift | ✗      | ✓      |
-| VDXR      | Meta Quest 3, Vive Focus  | ✗      | ✓      |
+| VDXR      | Meta Quest 3, Vive Focus  | ✓      | ✓      |
 | Monado    | Open Source/Community     | ✓      | ✓      |
 
 Some runtimes do not support OpenGL as Blender's [Display Graphics Backend](https://docs.blender.org/manual/en/latest/editors/preferences/system.html#display-graphics).
