@@ -18,10 +18,11 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
       - name: download wheels
-        run: pip wheel "openvr==2.12.1401" -w ./wheels
+        run: |
+          pip wheel --no-deps -r requirements.txt -w ./wheels
       - name: package
         run: |
-          zip -r ${{ env.ZIP_NAME }} ./* -x "images/*" "index.json"
+          zip -r ${{ env.ZIP_NAME }} ./* -x "images/*"
 
       - name: create repository manifest
         run: |

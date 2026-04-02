@@ -1,114 +1,125 @@
-# Dev reload
-if "bpy" in locals():
-    import sys
-    print("Reloading Tracking Toolkit Modules")
-    prefix = __package__ + "."
-    for name in sys.modules.copy():
-        if name.startswith(prefix):
-            print(f"Reloading {name}")
-            del sys.modules[name]
+_needs_reload = "bpy" in locals()
 
 import bpy
 
-from .tracking_toolkit.operators import (
-    CreateRefsOperator,
-    ToggleActiveOperator,
-    ToggleCalibrationOperator,
-    ToggleRecordOperator,
-    BuildArmatureOperator
-)
-from .tracking_toolkit.properties import (
-    OVRContext,
-    OVRArmatureJoints,
-    OVRTracker,
-    OVRTarget,
-    OVRTransform,
-    OVRInput,
-    Preferences
-)
-from .tracking_toolkit.tracking import stop_preview
-from .tracking_toolkit.ui import PANEL_UL_TrackerList, RecorderPanel, ArmaturePanel
+from .tracking_toolkit import operators, preferences, properties, ui, utils
+from .tracking_toolkit.xr_core import actions, tracking, core
+
+if _needs_reload:
+    import importlib
+
+    utils = importlib.reload(utils)
+    actions = importlib.reload(actions)
+    properties = importlib.reload(properties)
+    preferences = importlib.reload(preferences)
+    operators = importlib.reload(operators)
+    ui = importlib.reload(ui)
+    tracking = importlib.reload(tracking)
+    core = importlib.reload(core)
+
+    print("Tracking Toolkit Reloaded")
 
 
-def scene_update_callback(scene: bpy.types.Scene, _):
+@bpy.app.handlers.persistent
+def scene_update_callback(scene, _):
+    """
+    When a tracker object is selected in the scene, make it active in the list too.
+    This does not work with bones.
+    """
+    xr_context = tracking.get_context()
+    if xr_context.use_bones:
+        return
+
     selected = [obj for obj in scene.objects if obj.select_get()]
     if not selected:
         return
 
-    ovr_context = scene.OVRContext
+    active = selected[-1]
+    for tracker in xr_context.trackers:
+        if tracker.naming.role_string == active.get("role_string"):
+            if xr_context.selected_tracker != tracker.index:
+                xr_context["selected_tracker"] = tracker.index
 
-    active = selected[-1].name
-    for tracker in ovr_context.trackers:
-        if tracker.target.object and (tracker.target.object.name == active or tracker.joint.object.name == active):
-            if ovr_context.selected_tracker != tracker.index:
-                ovr_context.selected_tracker = tracker.index
+
+@bpy.app.handlers.persistent
+def load_post_callback(*_):
+    """
+    Stop XR whenever a new file is loaded.
+    """
+    tracking.stop_preview()
 
 
 def register():
-    print("Loading Tracking Toolkit")
+    print("Loading Tracking Toolkit...")
 
     # Props
-    bpy.utils.register_class(Preferences)
-    bpy.utils.register_class(OVRTransform)
-    bpy.utils.register_class(OVRTarget)
-    bpy.utils.register_class(OVRTracker)
-    bpy.utils.register_class(OVRInput)
-    bpy.utils.register_class(OVRArmatureJoints)
-    bpy.utils.register_class(OVRContext)
+    bpy.utils.register_class(properties.XRState)
+    bpy.utils.register_class(properties.XRTrackerNaming)
+    bpy.utils.register_class(properties.XRTracker)
+    bpy.utils.register_class(properties.XRContext)
+
+    # Prefs
+    bpy.utils.register_class(preferences.PreferenceNaming)
+    bpy.utils.register_class(preferences.ResetNicknamesOperator)
+    bpy.utils.register_class(preferences.Preferences)
+    preferences.initialize_preferences()
 
     # Operators
-    bpy.utils.register_class(ToggleCalibrationOperator)
-    bpy.utils.register_class(ToggleActiveOperator)
-    bpy.utils.register_class(CreateRefsOperator)
-    bpy.utils.register_class(ToggleRecordOperator)
-    bpy.utils.register_class(BuildArmatureOperator)
+    bpy.utils.register_class(operators.ToggleActiveOperator)
+    bpy.utils.register_class(operators.CreateRefsOperator)
+    bpy.utils.register_class(operators.ToggleRecordOperator)
 
     # Contexts
-
-    # noinspection PyNoneFunctionAssignment
-    bpy.types.Scene.OVRContext = bpy.props.PointerProperty(type=OVRContext)
+    bpy.types.WindowManager.XRState = bpy.props.PointerProperty(type=properties.XRState)
+    bpy.types.Scene.XRContext = bpy.props.PointerProperty(type=properties.XRContext)
 
     # UI
-    bpy.utils.register_class(PANEL_UL_TrackerList)
-    bpy.utils.register_class(RecorderPanel)
-    bpy.utils.register_class(ArmaturePanel)
+    bpy.utils.register_class(ui.PANEL_UL_TrackerList)
+    bpy.utils.register_class(ui.RecorderPanel)
 
     # Handlers
-    bpy.app.handlers.depsgraph_update_post.clear()
-    bpy.app.handlers.depsgraph_update_post.append(scene_update_callback)
+    if scene_update_callback not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.append(scene_update_callback)
+    if load_post_callback not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.load_post.append(load_post_callback)
+
+    print("Loaded Tracking Toolkit")
 
 
 def unregister():
     print("Unloading Tracking Toolkit...")
 
-    stop_preview()
+    tracking.stop_preview()
 
     # UI
-    bpy.utils.unregister_class(PANEL_UL_TrackerList)
-    bpy.utils.unregister_class(RecorderPanel)
-    bpy.utils.unregister_class(ArmaturePanel)
+    bpy.utils.unregister_class(ui.PANEL_UL_TrackerList)
+    bpy.utils.unregister_class(ui.RecorderPanel)
 
     # Contexts
-    del bpy.types.Scene.OVRContext
+    del bpy.types.Scene.XRContext
+    del bpy.types.WindowManager.XRState
 
     # Classes
-    bpy.utils.unregister_class(BuildArmatureOperator)
-    bpy.utils.unregister_class(ToggleRecordOperator)
-    bpy.utils.unregister_class(CreateRefsOperator)
-    bpy.utils.unregister_class(ToggleActiveOperator)
-    bpy.utils.unregister_class(ToggleCalibrationOperator)
+    bpy.utils.unregister_class(operators.ToggleRecordOperator)
+    bpy.utils.unregister_class(operators.CreateRefsOperator)
+    bpy.utils.unregister_class(operators.ToggleActiveOperator)
+
+    # Prefs
+    bpy.utils.unregister_class(preferences.Preferences)
+    bpy.utils.unregister_class(preferences.ResetNicknamesOperator)
+    bpy.utils.unregister_class(preferences.PreferenceNaming)
 
     # Props
-    bpy.utils.unregister_class(OVRContext)
-    bpy.utils.unregister_class(OVRArmatureJoints)
-    bpy.utils.unregister_class(OVRInput)
-    bpy.utils.unregister_class(OVRTracker)
-    bpy.utils.unregister_class(OVRTarget)
-    bpy.utils.unregister_class(OVRTransform)
-    bpy.utils.unregister_class(Preferences)
+    bpy.utils.unregister_class(properties.XRContext)
+    bpy.utils.unregister_class(properties.XRTracker)
+    bpy.utils.unregister_class(properties.XRTrackerNaming)
+    bpy.utils.unregister_class(properties.XRState)
 
     # Handlers
-    bpy.app.handlers.depsgraph_update_post.clear()
+    if scene_update_callback in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(scene_update_callback)
+    if load_post_callback in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(load_post_callback)
 
     print("Unloaded Tracking Toolkit")
 

@@ -1,129 +1,137 @@
 import bpy
 
-from .. import __package__ as base_package
+from .utils import convert_bones_to_empties, convert_empties_to_bones
+from .xr_core.actions import all_role_strings, reformat_role_string
 
 
-class OVRTransform(bpy.types.PropertyGroup):
-    location: bpy.props.FloatVectorProperty(name="Location", default=(0, 0, 0))
-    rotation: bpy.props.FloatVectorProperty(name="Rotation", default=(0, 0, 0))
-    scale: bpy.props.FloatVectorProperty(name="Scale", default=(1, 1, 1))
+def tracker_nickname_change(self, _):
+    role_string = self.role_string
+    default_name = reformat_role_string(role_string)
 
+    # This will have been updated by the time the callback happens.
+    new_nickname = self.nickname
 
-class OVRTarget(bpy.types.PropertyGroup):
-    object: bpy.props.PointerProperty(name="Target object", type=bpy.types.Object)
-    transform: bpy.props.PointerProperty(type=OVRTransform)
-    calibration_transform: bpy.props.PointerProperty(type=OVRTransform)
+    # Black nicknames reset to default.
+    if new_nickname == "":
+        self["nickname"] = default_name
 
-
-def tracker_name_change_callback(self, _):
-    tracker_ref = bpy.data.objects.get(self.prev_name)
-    if not tracker_ref:
-        return  # Not yet sure what to do here
-
-    tracker_joint = bpy.data.objects.get(f"{self.prev_name} Joint")
-    if not tracker_joint:
+    # Avoid trying to access objects on init.
+    if not hasattr(bpy.data, "objects"):
         return
 
-    tracker_ref.name = self.name
-    tracker_joint.name = f"{self.name} Joint"
+    # Nickname cannot be set to a default, unless it's the tracker's own.
+    if new_nickname in [reformat_role_string(rs) for rs in all_role_strings]:
+        # If we are renaming to another's.
+        if new_nickname != default_name:
+            # Revert to previous nickname (or default).
+            self["nickname"] = self.prev_nickname or default_name
 
-    self.prev_name = self.name
+            raise ValueError(
+                "You cannot use the real name of different tracker as a nickname."
+            )
 
+    def _prevent_conflict(items):
+        """
+        Function that errors when renaming to an existing nickname.
+        """
+        existing_names = [i.name for i in items]
+        if new_nickname in existing_names:
+            # Revert to previous nickname (or role string).
+            self["nickname"] = self.prev_nickname or self.role_string
 
-def armature_filter(_, obj: bpy.types.Object) -> bool:
-    if obj.type != "ARMATURE":
-        return False
+            raise ValueError(
+                f"Cannot rename {role_string} to an existing nickname or object: {new_nickname}."
+            )
 
-    is_linked = obj.library
-    if is_linked:
-        # Only show overridden objects
-        if not obj.override_library:
-            return False
+    if bpy.context.scene.XRContext.use_bones:
+        armature = bpy.data.objects.get("XR Trackers")
+        if armature:
+            bones = armature.pose.bones
+            _prevent_conflict(bones)
 
-    return True
+            # Find and rename bones.
+            for bone in bones:
+                if bone.get("role_string") != role_string:
+                    continue
 
+                if bone.get("ref_type") == "tracker":
+                    bone.name = new_nickname
+                elif bone.get("ref_type") == "offset":
+                    bone.name = f"{new_nickname} Offset"
 
-def armature_bone_list(self: "OVRTracker", context, _):
-    armature = self.armature or context.scene.OVRContext.armature
-    return [b.name for b in armature.data.bones]
+    else:
+        _prevent_conflict(bpy.data.objects)
 
+        # Find and rename empties.
+        for obj in bpy.data.objects:
+            if not obj.get("role_string") == role_string:
+                continue
 
-def tracker_binding_change_callback(self: "OVRTracker", context):
-    armature: bpy.types.Object = self.armature or context.scene.OVRContext.armature
+            if obj.get("ref_type") == "tracker":
+                obj.name = new_nickname
+            elif obj.get("ref_type") == "offset":
+                obj.name = f"{new_nickname} Offset"
 
-    bound_bone = armature.pose.bones.get(self.bone)
-    prev_bone = armature.pose.bones.get(self.prev_bone)
-
-    # Remove existing constraint
-    if prev_bone:
-        constraint = prev_bone.constraints.get("Tracker Binding")
-        if constraint:
-            prev_bone.constraints.remove(constraint)
-
-    # Create new constraint
-    if bound_bone:
-        constraint = bound_bone.constraints.new("COPY_TRANSFORMS")
-        constraint.name = "Tracker Binding"
-        constraint.target = self.joint.object
-
-        # noinspection PyTypeChecker
-        self.prev_bone = bound_bone.name
-
-
-class OVRTracker(bpy.types.PropertyGroup):
-    index: bpy.props.IntProperty(name="OpenVR name")
-    name: bpy.props.StringProperty(name="Tracker name", update=tracker_name_change_callback)
-    prev_name: bpy.props.StringProperty(name="Tracker name before renaming")
-    serial: bpy.props.StringProperty(name="Tracker serial string")
-    type: bpy.props.StringProperty(name="Tracker type")
-
-    connected: bpy.props.BoolProperty(name="Is tracker connected")
-
-    target: bpy.props.PointerProperty(type=OVRTarget)
-    joint: bpy.props.PointerProperty(type=OVRTarget)  # Joint offset
-
-    bone: bpy.props.StringProperty(name="Bound bone", search=armature_bone_list, update=tracker_binding_change_callback)
-    prev_bone: bpy.props.StringProperty(name="Previously bound bone")
-
-    armature: bpy.props.PointerProperty(name="Override armature", type=bpy.types.Object, poll=armature_filter)
+    print(f"Set nickname of {role_string} to {new_nickname}")
+    self.prev_nickname = new_nickname
 
 
-class OVRInput(bpy.types.PropertyGroup):
-    joystick_position: bpy.props.FloatVectorProperty(name="Joystick position", size=2, default=(0, 0))
-
-    grip_strength: bpy.props.FloatProperty(name="Grip strength", default=0)
-    trigger_strength: bpy.props.FloatProperty(name="Trigger strength", default=0)
-
-    a_button: bpy.props.BoolProperty(name="A pressed", default=False)
-    b_button: bpy.props.BoolProperty(name="B pressed", default=False)
+class XRTrackerNaming(bpy.types.PropertyGroup):
+    role_string: bpy.props.StringProperty()
+    prev_nickname: bpy.props.StringProperty()
+    nickname: bpy.props.StringProperty(
+        name="Tracker nickname", update=tracker_nickname_change
+    )
 
 
-def tracker_joint_filter(_, obj: bpy.types.Object) -> bool:
-    return " Joint" in obj.name
+def tracker_visible_change(self, _):
+    # Apply tracker visibility settings.
+
+    nickname = self.naming.nickname
+
+    # Try with bones.
+    armature = bpy.data.objects.get("XR Trackers")
+    if armature:
+        bones = armature.pose.bones
+
+        tracker_point = bones.get(nickname)
+        if tracker_point:
+            tracker_point.hide = self.hidden
+
+        tracker_offset = bones.get(f"{nickname} Offset")
+        if tracker_offset:
+            tracker_offset.hide = self.hidden
+
+    # Try with empties.
+    tracker_point = bpy.data.objects.get(nickname)
+    if tracker_point:
+        tracker_point.hide_viewport = self.hidden
+
+    tracker_offset = bpy.data.objects.get(f"{nickname} Offset")
+    if tracker_offset:
+        tracker_offset.hide_viewport = self.hidden
 
 
-class OVRArmatureJoints(bpy.types.PropertyGroup):
-    head: bpy.props.PointerProperty(name="Head", type=bpy.types.Object, poll=tracker_joint_filter)
-    chest: bpy.props.PointerProperty(name="Chest", type=bpy.types.Object, poll=tracker_joint_filter)
-    hips: bpy.props.PointerProperty(name="Hips", type=bpy.types.Object, poll=tracker_joint_filter)
-
-    r_hand: bpy.props.PointerProperty(name="Right hand", type=bpy.types.Object, poll=tracker_joint_filter)
-    l_hand: bpy.props.PointerProperty(name="Left hand", type=bpy.types.Object, poll=tracker_joint_filter)
-
-    r_elbow: bpy.props.PointerProperty(name="Right elbow", type=bpy.types.Object, poll=tracker_joint_filter)
-    l_elbow: bpy.props.PointerProperty(name="Left elbow", type=bpy.types.Object, poll=tracker_joint_filter)
-
-    r_foot: bpy.props.PointerProperty(name="Right foot", type=bpy.types.Object, poll=tracker_joint_filter)
-    l_foot: bpy.props.PointerProperty(name="Left foot", type=bpy.types.Object, poll=tracker_joint_filter)
-
-    r_knee: bpy.props.PointerProperty(name="Right knee", type=bpy.types.Object, poll=tracker_joint_filter)
-    l_knee: bpy.props.PointerProperty(name="Left knee", type=bpy.types.Object, poll=tracker_joint_filter)
+class XRTracker(bpy.types.PropertyGroup):
+    index: bpy.props.IntProperty(name="Tracker index")
+    name: bpy.props.StringProperty(name="Tracker name")
+    naming: bpy.props.PointerProperty(type=XRTrackerNaming)
+    hidden: bpy.props.BoolProperty(
+        name="Hidden in viewport", default=False, update=tracker_visible_change
+    )
 
 
-def selected_tracker_change_callback(self: "OVRContext", context):
+def selected_tracker_change_callback(self: "XRContext", context):
+    """
+    Select the tracker object in the viewport when the selected tracker changes.
+    This does not work with bones.
+    """
+    if self.use_bones:
+        return
+
     selected_tracker = self.trackers[self.selected_tracker]
 
-    obj = selected_tracker.joint.object
+    obj = bpy.data.objects.get(selected_tracker.naming.nickname)
     if not obj:
         return
 
@@ -132,36 +140,46 @@ def selected_tracker_change_callback(self: "OVRContext", context):
     context.view_layer.objects.active = obj
 
 
-class OVRContext(bpy.types.PropertyGroup):
-    enabled: bpy.props.BoolProperty(name="OpenVR active", default=False)
-    calibration_stage: bpy.props.IntProperty(name="Stage number of OpenVR Calibration", default=0)
-    recording: bpy.props.BoolProperty(name="OpenVR recording", default=False)
+def use_bones_change_callback(self: "XRContext", _):
+    # Convert empties to bones.
+    if self.use_bones:
+        convert_empties_to_bones()
 
-    trackers: bpy.props.CollectionProperty(type=OVRTracker)
-    selected_tracker: bpy.props.IntProperty(name="Selected tracker", default=0, update=selected_tracker_change_callback)
-
-    offset: bpy.props.PointerProperty(type=OVRTransform, name="Tracker offset")
-
-    record_start_frame: bpy.props.IntProperty(name="Recording start frame", default=0)
-
-    armature: bpy.props.PointerProperty(name="Default Armature", type=bpy.types.Object, poll=armature_filter)
-
-    l_input: bpy.props.PointerProperty(type=OVRInput, name="Left controller input state")
-    r_input: bpy.props.PointerProperty(type=OVRInput, name="Right controller input state")
-
-    armature_joints: bpy.props.PointerProperty(type=OVRArmatureJoints, name="Armature Joints")
+    # Convert bones to empties.
+    else:
+        convert_bones_to_empties()
 
 
-class Preferences(bpy.types.AddonPreferences):
-    bl_idname = base_package
+def get_timer_items():
+    return [
+        ("0", "None", "No timer"),
+        ("5", "5s", "5 seconds"),
+        ("10", "10s", "10 seconds"),
+        ("15", "15s", "15 seconds"),
+        ("CUSTOM", "Custom", "Custom duration"),
+    ]
 
-    steamvr_installation_path: bpy.props.StringProperty(
-        name="SteamVR Installation Path",
-        subtype="FILE_PATH",
-        default="C:/Program Files (x86)/Steam/steamapps/common/SteamVR"
+
+class XRState(bpy.types.PropertyGroup):
+    enabled: bpy.props.BoolProperty(name="OpenXR active", default=False)
+    recording: bpy.props.BoolProperty(name="OpenXR recording", default=False)
+    countdown: bpy.props.IntProperty(name="Countdown value")
+    runtime: bpy.props.StringProperty(name="OpenXR runtime name", default="Unknown")
+
+
+class XRContext(bpy.types.PropertyGroup):
+    use_bones: bpy.props.BoolProperty(
+        name="Use Bone References", default=True, update=use_bones_change_callback
     )
 
-    def draw(self, _):
-        layout = self.layout
-        layout.label(text="Preferences for Tracking Toolkit")
-        layout.prop(self, "steamvr_installation_path")
+    trackers: bpy.props.CollectionProperty(type=XRTracker)
+    selected_tracker: bpy.props.IntProperty(
+        name="Selected tracker", default=0, update=selected_tracker_change_callback
+    )
+
+    timer: bpy.props.EnumProperty(
+        name="Time length", items=get_timer_items(), default="0"
+    )
+    timer_custom: bpy.props.IntProperty(
+        name="Custom time length", default=15, min=0, max=60, step=5
+    )

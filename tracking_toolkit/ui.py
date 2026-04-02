@@ -1,35 +1,37 @@
 import bpy
 from bl_ui.space_view3d_toolbar import View3DPanel
 
-from .operators import (
-    ToggleActiveOperator,
-    ToggleCalibrationOperator,
-    CreateRefsOperator,
-    ToggleRecordOperator,
-    BuildArmatureOperator
-)
-from .properties import OVRContext
+from .utils import get_context, get_state
+from .operators import ToggleActiveOperator, CreateRefsOperator, ToggleRecordOperator
 
 
 class PANEL_UL_TrackerList(bpy.types.UIList):
     def draw_item(
-            self,
-            context,
-            layout,
-            data,
-            item,
-            icon,
-            active_data,
-            active_property,
-            index,
-            flt_flag,
+        self,
+        context,
+        layout,
+        data,
+        item,
+        icon,
+        active_data,
+        active_property,
+        index,
+        flt_flag,
     ):
         selected_tracker = item
-        layout.prop(selected_tracker, "name", text="", emboss=False, icon_value=icon)
+
+        layout.prop(
+            selected_tracker.naming, "nickname", text="", emboss=False, icon="TRACKER"
+        )
+
+        if selected_tracker.hidden:
+            layout.prop(item, "hidden", icon="HIDE_ON", icon_only=True, emboss=False)
+        else:
+            layout.prop(item, "hidden", icon="HIDE_OFF", icon_only=True, emboss=False)
 
 
 class RecorderPanel(View3DPanel, bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_openvr_recorder_menu"
+    bl_idname = "VIEW3D_PT_openxr_recorder_menu"
     bl_label = "Tracking Toolkit Recorder"
     bl_category = "Track TK"
     bl_space_type = "VIEW_3D"
@@ -37,85 +39,78 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
 
     def draw(self, context: bpy.types.Context):
         layout = self.layout
-        ovr_context: OVRContext = context.scene.OVRContext
-
-        layout.label(text="Tracking Toolkit Recorder")
+        xr_context = get_context()
+        xr_state = get_state()
 
         # Toggle active button
         # It's super annoying to have Blender not save the state of this button on save, so we just label it funny
-        activate_label = "Disconnect/Reset OpenVR" if ovr_context.enabled else "Start/Connect OpenVR"
+        activate_label = (
+            "Disconnect/Reset OpenXR" if xr_state.enabled else "Start/Connect OpenXR"
+        )
         layout.operator(ToggleActiveOperator.bl_idname, text=activate_label)
 
         # Trackers
         layout.label(text="Manage Trackers")
 
-        # Default armature
-        layout.prop(ovr_context, "armature", placeholder="Default Armature")
-
         # Tracker management
         layout.template_list(
             "PANEL_UL_TrackerList",
             "",
-            ovr_context,
+            xr_context,
             "trackers",
-            ovr_context,
+            xr_context,
             "selected_tracker",
-            rows=len(ovr_context.trackers),
-            type="DEFAULT"
+            rows=len(xr_context.trackers),
+            type="DEFAULT",
         )
 
-        # Bone binding
-        layout.label(text="Bone binding")
-        layout.label(text="Note: you may want to use the Armature Tools panel instead")
+        layout.label(text="Headset must be awake to find trackers.")
 
-        if ovr_context.selected_tracker and ovr_context.selected_tracker < len(ovr_context.trackers):
-            selected_tracker = ovr_context.trackers[ovr_context.selected_tracker]
-
-            layout.prop(selected_tracker, "armature", placeholder="Override Armature")
-            layout.prop(selected_tracker, "bone", placeholder="Bound Bone")
+        # SteamVR specific warnings.
+        # Use startswith because SteamVR sometimes appends additional text.
+        if xr_state.runtime.startswith("SteamVR/OpenXR"):
+            # Some users will just be using trackers and not wearing the headset.
+            # If this happens, the XR state won't become XR_FOCUSED, and we won't get data.
+            # In the future, we could somehow check if it's disabled based on tracker movement.
+            layout.label(
+                text="Ensure 'Pause VR when headset is idle' is disabled in SteamVR."
+            )
 
         # Create empties
+        layout.prop(
+            data=xr_context, property="use_bones", text="Use Bones For Trackers"
+        )
         layout.operator(CreateRefsOperator.bl_idname, text="Create References")
 
-        # Show the rest if OpenVR is running
-        if not ovr_context.enabled:
+        # Show the rest if OpenXr is running
+        if not xr_state.enabled:
             return
-
-        # Calibration
-        layout.label(text="Calibration:")
-
-        # Toggle calibration button
-        if ovr_context.calibration_stage == 1:
-            calibrate_btn_label = "Continue to Offset"
-            calibrate_hint = "Stage 1: Line up the opaque tracker models with the character"
-        elif ovr_context.calibration_stage == 2:
-            calibrate_btn_label = "Complete Calibration"
-            calibrate_hint = "Stage 2: Offset the wireframe tracker models to correct the pose"
-        else:
-            calibrate_btn_label = "Start Calibration"
-            calibrate_hint = "Calibration complete"
-
-        layout.operator(ToggleCalibrationOperator.bl_idname, text=calibrate_btn_label)
-        layout.label(text=calibrate_hint)
 
         # Recording
         layout.label(text="Recording")
 
+        is_delaying = xr_state.countdown > 0
+
         # Make button big
         record_btn_row = layout.row()
         record_btn_row.scale_y = 2
-        record_btn_row.alert = ovr_context.recording
+        record_btn_row.alert = xr_state.recording and not is_delaying
 
         start_record_label = "Start Recording"
         stop_record_label = "Stop Recording"
-        active_record_label = stop_record_label if ovr_context.recording else start_record_label
+        active_record_label = (
+            stop_record_label if xr_state.recording else start_record_label
+        )
+
+        if xr_state.recording and is_delaying:
+            active_record_label = f"Starting in {xr_state.countdown}s..."
 
         start_record_icon = "RECORD_OFF"
         stop_record_icon = "RECORD_ON"
-        active_record_icon = stop_record_icon if ovr_context.recording else start_record_icon
+        active_record_icon = (
+            stop_record_icon if xr_state.recording else start_record_icon
+        )
 
-        # I hate warnings (for icon type checking)
-        # noinspection PyTypeChecker
         record_btn_row.operator(
             ToggleRecordOperator.bl_idname,
             text=active_record_label,
@@ -123,34 +118,6 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
             depress=True,
         )
 
-
-class ArmaturePanel(View3DPanel, bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_openvr_armature_menu"
-    bl_label = "Armature Tools"
-    bl_category = "Track TK"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-
-    def draw(self, context: bpy.types.Context):
-        layout = self.layout
-        ovr_context: OVRContext = context.scene.OVRContext
-
-        joints = ovr_context.armature_joints
-
-        layout.prop(joints, "head")
-        layout.prop(joints, "chest")
-        layout.prop(joints, "hips")
-
-        layout.prop(joints, "r_hand")
-        layout.prop(joints, "l_hand")
-
-        layout.prop(joints, "r_elbow")
-        layout.prop(joints, "l_elbow")
-
-        layout.prop(joints, "r_foot")
-        layout.prop(joints, "l_foot")
-
-        layout.prop(joints, "r_knee")
-        layout.prop(joints, "l_knee")
-
-        layout.operator(BuildArmatureOperator.bl_idname)
+        layout.prop(data=xr_context, property="timer", text="Delay")
+        if xr_context.timer == "CUSTOM":
+            layout.prop(data=xr_context, property="timer_custom", text="Seconds")

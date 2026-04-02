@@ -6,24 +6,23 @@
       "schema_version": "1.0.0",
       "id": "tracking_toolkit",
       "name": "Tracking Toolkit",
-      "tagline": "Use OpenVR trackers and devices directly in Blender",
-      "version": "1.2.0",
+      "tagline": "Use OpenXR trackers and devices directly in Blender",
+      "version": "2.0.0",
       "type": "add-on",
       "maintainer": "Ethan Porcaro <ethan@varrett.com>",
       "license": [
         "SPDX:GPL-3.0-or-later"
       ],
-      "blender_version_min": "4.2.0",
+      "blender_version_min": "5.0.0",
       "permissions": {
-        "files": "Load SteamVR controller and tracker models"
+        "files": "Load custom shapes for tracker models"
       },
       "tags": [
         "Animation",
         "Tracking"
       ],
       "platforms": [
-        "windows-x64",
-        "linux-x64"
+        "windows-x64"
       ],
       "python_versions": [
         "3"
