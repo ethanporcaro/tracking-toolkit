@@ -21,3 +21,9 @@ Before packaging or running from source, execute these commands to fetch depende
 `pip wheel --no-deps -r requirements.txt -w ./wheels`
 
 This is to comply with the [Python Wheels rules](https://docs.blender.org/manual/en/latest/advanced/extensions/python_wheels.html) for the [Blender Extensions](https://extensions.blender.org/) platform.
+
+# Github Actions
+
+You can use [act](https://github.com/nektos/act) to test the GitHub action workflow.
+
+`act -P windows-latest=-self-hosted -j build`

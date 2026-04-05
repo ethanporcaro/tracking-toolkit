@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "tracking_toolkit"
-version = "2.0.0"
+version = "2.0.1"
 name = "Tracking Toolkit"
 tagline = "Use OpenXR trackers and devices directly in Blender"
 maintainer = "Ethan Porcaro <ethan@varrett.com>"
@@ -27,7 +27,6 @@ paths_exclude_pattern = [
   "__pycache__/",
   ".*",
   "*.zip",
-  "repository_base.json",
   "DEVELOPMENT.md",
   "README.md",
   "requirements.txt",
