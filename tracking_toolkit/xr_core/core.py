@@ -1,5 +1,5 @@
+import platform
 import ctypes
-import ctypes.wintypes
 import time
 
 import bpy
@@ -24,6 +24,7 @@ def _pose_to_mat(pose):
     return mat_world @ mat
 
 
+use_linux = platform.system() == "Linux"
 use_compatibility_mode = False
 context: ContextObject | None = None
 spaces = {}
@@ -73,6 +74,9 @@ def start_xr():
     # Headless mode must be supported to use Blender's OpenGL.
     # This is because the OpenXR OpenGL will conflict with Blender's and cause crashes.
     if use_compatibility_mode:
+        if use_linux:
+            raise RuntimeError("Headless mode is not supported on Linux.")
+
         if xr.MND_HEADLESS_EXTENSION_NAME not in available_extensions:
             raise RuntimeError(
                 "Your runtime does not support headless mode. "
@@ -223,8 +227,11 @@ def start_xr():
     )
 
 
-pc_time = ctypes.wintypes.LARGE_INTEGER()
-kernel32 = ctypes.WinDLL("kernel32")
+if not use_linux:
+    import ctypes.wintypes
+
+    pc_time = ctypes.wintypes.LARGE_INTEGER()
+    kernel32 = ctypes.WinDLL("kernel32")
 
 
 def _get_time() -> xr.Time:
