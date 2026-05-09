@@ -5,7 +5,9 @@ import bpy
 import pyaudio
 
 from .utils import get_state
-from .preferences import get_preferences
+
+
+from .. import __package__ as base_package
 
 
 @dataclass
@@ -120,7 +122,8 @@ def start_timecode():
     # Get device from Blender preference.
 
     devices = get_audio_inputs()
-    preferences = get_preferences()
+    # Get here to prevent circular import.
+    preferences = bpy.context.preferences.addons[base_package].preferences
     dev_name = preferences.ltc_source
     if dev_name == "None":
         print("No LTC source configured")
