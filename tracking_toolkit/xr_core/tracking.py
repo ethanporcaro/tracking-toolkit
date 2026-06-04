@@ -5,7 +5,7 @@ import mathutils
 from bpy_extras import anim_utils
 
 from .actions import vive_role_strings
-from .core import start_xr, tick_xr, stop_xr
+from .core import start_xr, tick_xr, stop_xr, PoseData
 from ..preferences import get_preferences
 from ..utils import get_context, get_state
 
@@ -79,12 +79,12 @@ def _clear_buffer():
     data_buffer.clear()
 
 
-def _get_buffer() -> list[tuple[datetime.datetime, dict[str, mathutils.Matrix]]]:
+def _get_buffer() -> list[tuple[datetime.datetime, dict[str, PoseData]]]:
     global data_buffer
     return data_buffer.copy()
 
 
-def _get_latest_poses() -> dict[str, mathutils.Matrix] | None:
+def _get_latest_poses() -> dict[str, PoseData] | None:
     global data_buffer
     if len(data_buffer) == 0:
         return None
@@ -120,7 +120,15 @@ def _apply_poses():
                 if not bone.get("ref_type") == "tracker":
                     continue
 
-                bone.matrix = pose
+                bone.matrix = pose.pose
+                bone["trigger"] = pose.trigger
+                bone["grip"] = pose.grip
+                bone["thumbstick_x"] = pose.thumbstick_x
+                bone["thumbstick_y"] = pose.thumbstick_y
+                bone["button_a"] = pose.button_a
+                bone["button_b"] = pose.button_b
+                bone["button_x"] = pose.button_x
+                bone["button_y"] = pose.button_y
 
         # Apply empty transforms.
         else:
@@ -131,7 +139,15 @@ def _apply_poses():
                 if not obj.get("ref_type") == "tracker":
                     continue
 
-                obj.matrix_world = pose
+                obj.matrix_world = pose.pose
+                obj["trigger"] = pose.trigger
+                obj["grip"] = pose.grip
+                obj["thumbstick_x"] = pose.thumbstick_x
+                obj["thumbstick_y"] = pose.thumbstick_y
+                obj["button_a"] = pose.button_a
+                obj["button_b"] = pose.button_b
+                obj["button_x"] = pose.button_x
+                obj["button_y"] = pose.button_y
 
 
 def _pose_vis_timer():
@@ -252,6 +268,14 @@ def _insert_action():
                     "locs": [],
                     "rots": [],
                     "scales": [],
+                    "triggers": [],
+                    "grips": [],
+                    "thumbstick_xs": [],
+                    "thumbstick_ys": [],
+                    "button_as": [],
+                    "button_bs": [],
+                    "button_xs": [],
+                    "button_ys": [],
                 }
 
             # Lerp pose.
@@ -260,12 +284,35 @@ def _insert_action():
                 continue
             prev_pose = prev_sample[name]
 
-            loc0, rot0, sca0 = prev_pose.decompose()
-            loc1, rot1, sca1 = next_pose.decompose()
+            loc0, rot0, sca0 = prev_pose.pose.decompose()
+            loc1, rot1, sca1 = next_pose.pose.decompose()
 
             loc_final = loc0.lerp(loc1, factor)
             rot_final = rot0.slerp(rot1, factor)  # Slerp for rotation.
             sca_final = sca0.lerp(sca1, factor)
+
+            trigger0 = prev_pose.trigger
+            trigger1 = next_pose.trigger
+            trigger_final = trigger0 + (trigger1 - trigger0) * factor
+
+            grip0 = prev_pose.grip
+            grip1 = next_pose.grip
+            grip_final = grip0 + (grip1 - grip0) * factor
+
+            ts_x0 = prev_pose.thumbstick_x
+            ts_x1 = next_pose.thumbstick_x
+            ts_x_final = ts_x0 + (ts_x1 - ts_x0) * factor
+
+            ts_y0 = prev_pose.thumbstick_y
+            ts_y1 = next_pose.thumbstick_y
+            ts_y_final = ts_y0 + (ts_y1 - ts_y0) * factor
+
+            # Binarize buttons.
+            btn_pose = next_pose if factor > 0.5 else prev_pose
+            a_final = btn_pose.button_a
+            b_final = btn_pose.button_b
+            x_final = btn_pose.button_x
+            y_final = btn_pose.button_y
 
             lerp_pose = mathutils.Matrix.LocRotScale(loc_final, rot_final, sca_final)
 
@@ -277,6 +324,14 @@ def _insert_action():
             data["locs"].extend(loc)
             data["rots"].extend(rot)
             data["scales"].extend(scale)
+            data["triggers"].append(trigger_final)
+            data["grips"].append(grip_final)
+            data["thumbstick_xs"].append(ts_x_final)
+            data["thumbstick_ys"].append(ts_y_final)
+            data["button_as"].append(a_final)
+            data["button_bs"].append(b_final)
+            data["button_xs"].append(x_final)
+            data["button_ys"].append(y_final)
 
         # Increment.
         current_time += 1 / record_fps
@@ -341,12 +396,28 @@ def _insert_action():
                 (f"{data_path_prefix}.location", 3, data["locs"]),
                 (f"{data_path_prefix}.rotation_quaternion", 4, data["rots"]),
                 (f"{data_path_prefix}.scale", 3, data["scales"]),
+                (f'{data_path_prefix}["trigger"]', 1, data["triggers"]),
+                (f'{data_path_prefix}["grip"]', 1, data["grips"]),
+                (f'{data_path_prefix}["thumbstick_x"]', 1, data["thumbstick_xs"]),
+                (f'{data_path_prefix}["thumbstick_y"]', 1, data["thumbstick_ys"]),
+                (f'{data_path_prefix}["button_a"]', 1, data["button_as"]),
+                (f'{data_path_prefix}["button_b"]', 1, data["button_bs"]),
+                (f'{data_path_prefix}["button_x"]', 1, data["button_xs"]),
+                (f'{data_path_prefix}["button_y"]', 1, data["button_ys"]),
             ]
         else:
             fcurve_props = [
                 ("location", 3, data["locs"]),
                 ("rotation_quaternion", 4, data["rots"]),
                 ("scale", 3, data["scales"]),
+                ('["trigger"]', 1, data["triggers"]),
+                ('["grip"]', 1, data["grips"]),
+                ('["thumbstick_x"]', 1, data["thumbstick_xs"]),
+                ('["thumbstick_y"]', 1, data["thumbstick_ys"]),
+                ('["button_a"]', 1, data["button_as"]),
+                ('["button_b"]', 1, data["button_bs"]),
+                ('["button_x"]', 1, data["button_xs"]),
+                ('["button_y"]', 1, data["button_ys"]),
             ]
 
         # Efficiently insert animation data by directly inserting it into the fcurves.

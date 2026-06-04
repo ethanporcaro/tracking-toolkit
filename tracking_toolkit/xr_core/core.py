@@ -1,6 +1,7 @@
 import ctypes
 import ctypes.wintypes
 import time
+from ctypes import pointer
 
 import bpy
 import gpu
@@ -9,8 +10,22 @@ import mathutils
 import xr
 from xr.utils.gl import ContextObject
 from xr.utils.gl.glfw_util import GLFWOffscreenContextProvider
+from dataclasses import dataclass
 
 from .actions import default_action_data, vive_tracker_action_data
+
+
+@dataclass
+class PoseData:
+    pose: mathutils.Matrix
+    trigger: float
+    grip: float
+    thumbstick_x: float
+    thumbstick_y: float
+    button_a: float
+    button_b: float
+    button_x: float
+    button_y: float
 
 
 def _pose_to_mat(pose):
@@ -27,6 +42,15 @@ def _pose_to_mat(pose):
 use_compatibility_mode = False
 context: ContextObject | None = None
 spaces = {}
+action_data = default_action_data.copy()
+action_trigger = None
+action_squeeze = None
+action_thumbstick_x = None
+action_thumbstick_y = None
+action_a_click = None
+action_b_click = None
+action_x_click = None
+action_y_click = None
 
 
 def _headless_enter(self):
@@ -136,7 +160,9 @@ def start_xr():
     bpy.context.window_manager.XRState.runtime = runtime_name
     print(f"Using {runtime_name} as OpenXR runtime.")
 
-    # Setup actions
+    # Setup actions.
+
+    global action_data
     action_data = default_action_data.copy()
     if use_vive_trackers:
         action_data.extend(vive_tracker_action_data)
@@ -155,8 +181,91 @@ def start_xr():
         ),
     )
 
-    # Controller suggested bindings
-    suggested_bindings = [
+    global action_trigger, action_squeeze
+    global action_thumbstick_x, action_thumbstick_y, action_a_click, action_b_click, action_x_click, action_y_click
+    action_trigger = xr.create_action(
+        action_set=context.default_action_set,
+        create_info=xr.ActionCreateInfo(
+            action_type=xr.ActionType.FLOAT_INPUT,
+            action_name="tracker_trigger",
+            localized_action_name="Tracker Trigger",
+            count_subaction_paths=len(paths),
+            subaction_paths=paths,
+        ),
+    )
+    action_squeeze = xr.create_action(
+        action_set=context.default_action_set,
+        create_info=xr.ActionCreateInfo(
+            action_type=xr.ActionType.FLOAT_INPUT,
+            action_name="tracker_squeeze",
+            localized_action_name="Tracker Squeeze",
+            count_subaction_paths=len(paths),
+            subaction_paths=paths,
+        ),
+    )
+    action_thumbstick_x = xr.create_action(
+        action_set=context.default_action_set,
+        create_info=xr.ActionCreateInfo(
+            action_type=xr.ActionType.FLOAT_INPUT,
+            action_name="tracker_thumbstick_x",
+            localized_action_name="Tracker Thumbstick X",
+            count_subaction_paths=len(paths),
+            subaction_paths=paths,
+        ),
+    )
+    action_thumbstick_y = xr.create_action(
+        action_set=context.default_action_set,
+        create_info=xr.ActionCreateInfo(
+            action_type=xr.ActionType.FLOAT_INPUT,
+            action_name="tracker_thumbstick_y",
+            localized_action_name="Tracker Thumbstick Y",
+            count_subaction_paths=len(paths),
+            subaction_paths=paths,
+        ),
+    )
+    action_a_click = xr.create_action(
+        action_set=context.default_action_set,
+        create_info=xr.ActionCreateInfo(
+            action_type=xr.ActionType.BOOLEAN_INPUT,
+            action_name="tracker_a_click",
+            localized_action_name="Tracker A Click",
+            count_subaction_paths=len(paths),
+            subaction_paths=paths,
+        ),
+    )
+    action_b_click = xr.create_action(
+        action_set=context.default_action_set,
+        create_info=xr.ActionCreateInfo(
+            action_type=xr.ActionType.BOOLEAN_INPUT,
+            action_name="tracker_b_click",
+            localized_action_name="Tracker B Click",
+            count_subaction_paths=len(paths),
+            subaction_paths=paths,
+        ),
+    )
+    action_x_click = xr.create_action(
+        action_set=context.default_action_set,
+        create_info=xr.ActionCreateInfo(
+            action_type=xr.ActionType.BOOLEAN_INPUT,
+            action_name="tracker_x_click",
+            localized_action_name="Tracker X Click",
+            count_subaction_paths=len(paths),
+            subaction_paths=paths,
+        ),
+    )
+    action_y_click = xr.create_action(
+        action_set=context.default_action_set,
+        create_info=xr.ActionCreateInfo(
+            action_type=xr.ActionType.BOOLEAN_INPUT,
+            action_name="tracker_y_click",
+            localized_action_name="Tracker Y Click",
+            count_subaction_paths=len(paths),
+            subaction_paths=paths,
+        ),
+    )
+
+    # Base controller suggested bindings.
+    simple_bindings = [
         xr.ActionSuggestedBinding(
             action=action,
             binding=xr.string_to_path(
@@ -173,10 +282,124 @@ def start_xr():
             interaction_profile=xr.string_to_path(
                 context.instance, "/interaction_profiles/khr/simple_controller"
             ),
-            count_suggested_bindings=len(suggested_bindings),
-            suggested_bindings=suggested_bindings,
+            count_suggested_bindings=len(simple_bindings),
+            suggested_bindings=simple_bindings,
         ),
     )
+
+    # Advanced controller bindings (trigger, squeeze, thumbsticks, buttons).
+    oculus_bindings = list(simple_bindings)
+    index_bindings = list(simple_bindings)
+    for data in default_action_data:
+        for bindings in [oculus_bindings, index_bindings]:
+            bindings.extend(
+                [
+                    xr.ActionSuggestedBinding(
+                        action=action_trigger,
+                        binding=xr.string_to_path(
+                            context.instance, data.action_path + "/input/trigger/value"
+                        ),
+                    ),
+                    xr.ActionSuggestedBinding(
+                        action=action_squeeze,
+                        binding=xr.string_to_path(
+                            context.instance, data.action_path + "/input/squeeze/value"
+                        ),
+                    ),
+                    xr.ActionSuggestedBinding(
+                        action=action_thumbstick_x,
+                        binding=xr.string_to_path(
+                            context.instance, data.action_path + "/input/thumbstick/x"
+                        ),
+                    ),
+                    xr.ActionSuggestedBinding(
+                        action=action_thumbstick_y,
+                        binding=xr.string_to_path(
+                            context.instance, data.action_path + "/input/thumbstick/y"
+                        ),
+                    ),
+                ]
+            )
+
+        if data.name == "left_hand":
+            oculus_bindings.extend(
+                [
+                    xr.ActionSuggestedBinding(
+                        action=action_x_click,
+                        binding=xr.string_to_path(
+                            context.instance, data.action_path + "/input/x/click"
+                        ),
+                    ),
+                    xr.ActionSuggestedBinding(
+                        action=action_y_click,
+                        binding=xr.string_to_path(
+                            context.instance, data.action_path + "/input/y/click"
+                        ),
+                    ),
+                ]
+            )
+            index_bindings.extend(
+                [
+                    xr.ActionSuggestedBinding(
+                        action=action_a_click,
+                        binding=xr.string_to_path(
+                            context.instance, data.action_path + "/input/a/click"
+                        ),
+                    ),
+                    xr.ActionSuggestedBinding(
+                        action=action_b_click,
+                        binding=xr.string_to_path(
+                            context.instance, data.action_path + "/input/b/click"
+                        ),
+                    ),
+                ]
+            )
+        elif data.name == "right_hand":
+            for bindings in [oculus_bindings, index_bindings]:
+                bindings.extend(
+                    [
+                        xr.ActionSuggestedBinding(
+                            action=action_a_click,
+                            binding=xr.string_to_path(
+                                context.instance, data.action_path + "/input/a/click"
+                            ),
+                        ),
+                        xr.ActionSuggestedBinding(
+                            action=action_b_click,
+                            binding=xr.string_to_path(
+                                context.instance, data.action_path + "/input/b/click"
+                            ),
+                        ),
+                    ]
+                )
+
+    try:
+        xr.suggest_interaction_profile_bindings(
+            instance=context.instance,
+            suggested_bindings=xr.InteractionProfileSuggestedBinding(
+                interaction_profile=xr.string_to_path(
+                    context.instance, "/interaction_profiles/oculus/touch_controller"
+                ),
+                count_suggested_bindings=len(oculus_bindings),
+                suggested_bindings=oculus_bindings,
+            ),
+        )
+    except xr.exception.PathUnsupportedError:
+        pass
+
+    try:
+        xr.suggest_interaction_profile_bindings(
+            instance=context.instance,
+            suggested_bindings=xr.InteractionProfileSuggestedBinding(
+                interaction_profile=xr.string_to_path(
+                    context.instance, "/interaction_profiles/valve/index_controller"
+                ),
+                count_suggested_bindings=len(index_bindings),
+                suggested_bindings=index_bindings,
+            ),
+        )
+    except xr.exception.PathUnsupportedError:
+        pass
 
     # Vive tracker suggested bindings
     if use_vive_trackers:
@@ -218,7 +441,7 @@ def start_xr():
         session=context.session,
         attach_info=xr.SessionActionSetsAttachInfo(
             count_action_sets=len(context.action_sets),
-            action_sets=(xr.ActionSet * len(context.action_sets))(*context.action_sets),
+            action_sets=pointer(context.default_action_set),
         ),
     )
 
@@ -337,7 +560,47 @@ def tick_xr():
             )
 
             if space_location.location_flags & xr.SPACE_LOCATION_POSITION_VALID_BIT:
-                poses[space_name] = _pose_to_mat(space_location.pose)
+                # Get float state for trigger and squeeze
+                subaction_path = xr.string_to_path(
+                    context.instance,
+                    [d.action_path for d in action_data if d.name == space_name][0],
+                )
+
+                def get_float(action) -> float:
+                    try:
+                        state = xr.get_action_state_float(
+                            session=context.session,
+                            get_info=xr.ActionStateGetInfo(
+                                action=action, subaction_path=subaction_path
+                            ),
+                        )
+                        return state.current_state if state.is_active else 0.0
+                    except xr.XrException:
+                        return 0.0
+
+                def get_bool(action) -> float:
+                    try:
+                        state = xr.get_action_state_boolean(
+                            session=context.session,
+                            get_info=xr.ActionStateGetInfo(
+                                action=action, subaction_path=subaction_path
+                            ),
+                        )
+                        return float(state.current_state) if state.is_active else 0.0
+                    except xr.XrException:
+                        return 0.0
+
+                poses[space_name] = PoseData(
+                    pose=_pose_to_mat(space_location.pose),
+                    trigger=get_float(action_trigger),
+                    grip=get_float(action_squeeze),
+                    thumbstick_x=get_float(action_thumbstick_x),
+                    thumbstick_y=get_float(action_thumbstick_y),
+                    button_a=get_bool(action_a_click),
+                    button_b=get_bool(action_b_click),
+                    button_x=get_bool(action_x_click),
+                    button_y=get_bool(action_y_click),
+                )
 
         # Get HMD pose
         view_state, views = xr.locate_views(
@@ -348,7 +611,17 @@ def tick_xr():
                 space=context.space,
             ),
         )
-        poses["head"] = _pose_to_mat(views[xr.utils.Eye.LEFT.value].pose)
+        poses["head"] = PoseData(
+            pose=_pose_to_mat(views[xr.utils.Eye.LEFT.value].pose),
+            trigger=0.0,
+            grip=0.0,
+            thumbstick_x=0.0,
+            thumbstick_y=0.0,
+            button_a=0.0,
+            button_b=0.0,
+            button_x=0.0,
+            button_y=0.0,
+        )
 
         if len(poses) == 0:
             return None
