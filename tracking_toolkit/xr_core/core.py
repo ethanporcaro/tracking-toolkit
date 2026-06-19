@@ -286,6 +286,10 @@ def tick_xr():
 
     frame_state = _poll_xr()
 
+    # Skip if state is invalid/not ready.
+    if not frame_state:
+        return None
+
     xr.begin_frame(context.session)
 
     # Headless 'frame'.
