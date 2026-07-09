@@ -1,5 +1,6 @@
 import bpy
 
+from .timecode import stop_timecode, start_timecode, get_audio_inputs
 from .xr_core.actions import all_role_strings, reformat_role_string
 from .. import __package__ as base_package
 
@@ -89,11 +90,33 @@ class PreferenceNaming(bpy.types.PropertyGroup):
     )
 
 
+def get_input_items():
+    devices = get_audio_inputs()
+    names = ["None"]
+    names.extend(devices.keys())
+    return [(n, n, n) for n in names]
+
+
+def ltc_source_change(self, _):
+    """
+    Restart LTC listener on source change.
+    """
+    stop_timecode()
+    start_timecode()
+
+
 class Preferences(bpy.types.AddonPreferences):
     bl_idname = base_package
 
     record_at_scene_fps: bpy.props.BoolProperty(default=True)
     record_custom_fps: bpy.props.IntProperty(default=24, min=1, max=120, soft_max=90)
+
+    ltc_source: bpy.props.EnumProperty(
+        name="LTC Input Source",
+        items=get_input_items(),
+        default="None",
+        update=ltc_source_change,
+    )
 
     naming: bpy.props.CollectionProperty(
         name="Default Tracker Nicknames", type=PreferenceNaming
@@ -109,6 +132,13 @@ class Preferences(bpy.types.AddonPreferences):
             layout.prop(self, "record_custom_fps", text="Custom FPS")
             layout.label(text="Warning: Using custom FPS. Subframes may be created.")
         layout.label(text="High scene or custom FPS can cause performance issues.")
+
+        layout.separator_spacer()
+
+        # Timecode options.
+
+        layout.label(text="Linear Timecode Audio Source")
+        layout.prop(self, "ltc_source", text="Source")
 
         layout.separator_spacer()
 

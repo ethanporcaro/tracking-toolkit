@@ -7,6 +7,7 @@ from bpy_extras import anim_utils
 from .actions import vive_role_strings
 from .core import start_xr, tick_xr, stop_xr
 from ..preferences import get_preferences
+from ..timecode import start_timecode, stop_timecode, get_current_timecode
 from ..utils import get_context, get_state
 
 # Shared variables
@@ -168,6 +169,7 @@ def _create_action(obj: bpy.types.Object, action_name: str):
 
 
 def _insert_action():
+    xr_state = get_state()
     xr_context = get_context()
     preferences = get_preferences()
 
@@ -287,19 +289,21 @@ def _insert_action():
     # Now insert or replace the data
     print("OpenXR Inserting data...")
 
-    # Format SMPTE timecode.
-    # Also calculate the frame based on the current microsecond/scene time.
-    # The frame is truncated down.
+    # If timecode available, use it.
+    if preferences.ltc_source != "None":
+        time_string = get_current_timecode()
 
-    time_string = start_time.strftime("%H:%M:%S")
-    second_offset = start_time.microsecond / (1000 * 1000)
-    frame_offset_str = str(int(second_offset * record_fps))
+    # Otherwise, form it from wall time.
+    else:
+        time_string = start_time.strftime("%H:%M:%S")
+        second_offset = start_time.microsecond / (1000 * 1000)
+        frame_offset_str = str(int(second_offset * record_fps))
 
-    # Pad to at least two digits.
-    if len(frame_offset_str) == 1:
-        frame_offset_str = f"0{frame_offset_str}"
+        # Pad to at least two digits.
+        if len(frame_offset_str) == 1:
+            frame_offset_str = f"0{frame_offset_str}"
 
-    time_string += f":{frame_offset_str}"
+        time_string += f":{frame_offset_str}"
 
     print(f"Using SMPTE timecode: {time_string}")
 
@@ -448,6 +452,7 @@ def stop_recording():
 
 def start_preview():
     _clear_buffer()
+    start_timecode()
     start_xr()
     get_state().enabled = True
 
@@ -472,6 +477,7 @@ def stop_preview():
 
     stop_xr()
     _clear_buffer()
+    stop_timecode()
 
     xr_state = get_state()
     xr_state.enabled = False

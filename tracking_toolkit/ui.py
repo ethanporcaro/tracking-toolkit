@@ -1,6 +1,7 @@
 import bpy
 from bl_ui.space_view3d_toolbar import View3DPanel
 
+from .preferences import get_preferences
 from .utils import get_context, get_state
 from .operators import ToggleActiveOperator, CreateRefsOperator, ToggleRecordOperator
 
@@ -41,6 +42,7 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         layout = self.layout
         xr_context = get_context()
         xr_state = get_state()
+        preferences = get_preferences()
 
         # Toggle active button
         # It's super annoying to have Blender not save the state of this button on save, so we just label it funny
@@ -121,3 +123,7 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         layout.prop(data=xr_context, property="timer", text="Delay")
         if xr_context.timer == "CUSTOM":
             layout.prop(data=xr_context, property="timer_custom", text="Seconds")
+
+        # Timecode preview.
+        if preferences.ltc_source != "None":
+            layout.label(text=xr_state.timecode, icon="TIME")
