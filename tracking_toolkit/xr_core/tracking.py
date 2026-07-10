@@ -6,12 +6,13 @@ from bpy_extras import anim_utils
 
 from .actions import vive_role_strings
 from .core import start_xr, tick_xr, stop_xr, PoseData
-from ..preferences import get_preferences
+from ..preferences import get_preferences, PreferenceInputMapping
 from ..utils import get_context, get_state
 
 # Shared variables
 data_buffer = []
 should_stop = False
+armed_triggers = []
 
 
 def _update_tracker_list(poses):
@@ -121,14 +122,6 @@ def _apply_poses():
                     continue
 
                 bone.matrix = pose.pose
-                bone["trigger"] = pose.trigger
-                bone["grip"] = pose.grip
-                bone["thumbstick_x"] = pose.thumbstick_x
-                bone["thumbstick_y"] = pose.thumbstick_y
-                bone["button_a"] = pose.button_a
-                bone["button_b"] = pose.button_b
-                bone["button_x"] = pose.button_x
-                bone["button_y"] = pose.button_y
 
         # Apply empty transforms.
         else:
@@ -140,19 +133,95 @@ def _apply_poses():
                     continue
 
                 obj.matrix_world = pose.pose
-                obj["trigger"] = pose.trigger
-                obj["grip"] = pose.grip
-                obj["thumbstick_x"] = pose.thumbstick_x
-                obj["thumbstick_y"] = pose.thumbstick_y
-                obj["button_a"] = pose.button_a
-                obj["button_b"] = pose.button_b
-                obj["button_x"] = pose.button_x
-                obj["button_y"] = pose.button_y
+
+        # Handle actions.
+        _handle_actions(role_string, pose)
 
 
 def _pose_vis_timer():
     _apply_poses()
     return 1.0 / 60  # 60hz
+
+
+def _handle_actions(role_string: str, pose: PoseData):
+    """
+    Handle the events triggered by actions. The mapping is stored in the preferences menu.
+    """
+
+    # Calculate leaped values.
+
+    # Build data.
+    data = {
+        "Trigger": pose.trigger,
+        "Grip": pose.grip,
+        "A": pose.button_a,
+        "B": pose.button_b,
+        "X": pose.button_x,
+        "Y": pose.button_y,
+        "Thumbstick X": pose.thumbstick_x,
+        "Thumbstick Y": pose.thumbstick_y,
+    }
+
+    # Check actions.
+
+    xr_state = get_state()
+    preferences = get_preferences()
+    map_: PreferenceInputMapping = preferences.input_mapping
+
+    def _check_input(action_name: str) -> bool:
+        """
+        Utility to check if an action trigger is met.
+        """
+        role_prop = getattr(map_, f"{action_name}_role", None)
+        ipt_prop = getattr(map_, f"{action_name}_input", None)
+
+        if not role_prop or not ipt_prop:
+            return False
+
+        if role_prop != role_string:
+            return False
+
+        value = data.get(ipt_prop)
+        if value is None:
+            return False
+
+        is_pressed = float(value) >= 0.9
+
+        # Check if the trigger is armed.
+        # This means that it was held before.
+        # If it is no longer held, that triggers the event.
+        global armed_triggers
+
+        is_armed = action_name in armed_triggers
+
+        # If pressed and unarmed, arm the event.
+        if is_pressed:
+            if not is_armed:
+                print(f"Holding {action_name}...")
+                armed_triggers.append(action_name)
+
+        # If not pressed, and was armed before, fire event and disarm.
+        else:
+            if is_armed:
+                print(f"Triggered {action_name}!")
+                armed_triggers.remove(action_name)
+                return True
+
+        return False
+
+    if _check_input("toggle_capture"):
+        if xr_state.recording:
+            stop_recording()
+        else:
+            start_recording()
+
+    if _check_input("frame_forward"):
+        if not xr_state.recording:
+            bpy.context.scene.frame_current += 1
+
+    if _check_input("frame_backward"):
+        if not xr_state.recording:
+            bpy.context.scene.frame_current -= 1
 
 
 def _create_action(obj: bpy.types.Object, action_name: str):
@@ -268,14 +337,6 @@ def _insert_action():
                     "locs": [],
                     "rots": [],
                     "scales": [],
-                    "triggers": [],
-                    "grips": [],
-                    "thumbstick_xs": [],
-                    "thumbstick_ys": [],
-                    "button_as": [],
-                    "button_bs": [],
-                    "button_xs": [],
-                    "button_ys": [],
                 }
 
             # Lerp pose.
@@ -291,29 +352,6 @@ def _insert_action():
             rot_final = rot0.slerp(rot1, factor)  # Slerp for rotation.
             sca_final = sca0.lerp(sca1, factor)
 
-            trigger0 = prev_pose.trigger
-            trigger1 = next_pose.trigger
-            trigger_final = trigger0 + (trigger1 - trigger0) * factor
-
-            grip0 = prev_pose.grip
-            grip1 = next_pose.grip
-            grip_final = grip0 + (grip1 - grip0) * factor
-
-            ts_x0 = prev_pose.thumbstick_x
-            ts_x1 = next_pose.thumbstick_x
-            ts_x_final = ts_x0 + (ts_x1 - ts_x0) * factor
-
-            ts_y0 = prev_pose.thumbstick_y
-            ts_y1 = next_pose.thumbstick_y
-            ts_y_final = ts_y0 + (ts_y1 - ts_y0) * factor
-
-            # Binarize buttons.
-            btn_pose = next_pose if factor > 0.5 else prev_pose
-            a_final = btn_pose.button_a
-            b_final = btn_pose.button_b
-            x_final = btn_pose.button_x
-            y_final = btn_pose.button_y
-
             lerp_pose = mathutils.Matrix.LocRotScale(loc_final, rot_final, sca_final)
 
             # Decompose the matrix and append data.
@@ -324,14 +362,6 @@ def _insert_action():
             data["locs"].extend(loc)
             data["rots"].extend(rot)
             data["scales"].extend(scale)
-            data["triggers"].append(trigger_final)
-            data["grips"].append(grip_final)
-            data["thumbstick_xs"].append(ts_x_final)
-            data["thumbstick_ys"].append(ts_y_final)
-            data["button_as"].append(a_final)
-            data["button_bs"].append(b_final)
-            data["button_xs"].append(x_final)
-            data["button_ys"].append(y_final)
 
         # Increment.
         current_time += 1 / record_fps
@@ -396,28 +426,12 @@ def _insert_action():
                 (f"{data_path_prefix}.location", 3, data["locs"]),
                 (f"{data_path_prefix}.rotation_quaternion", 4, data["rots"]),
                 (f"{data_path_prefix}.scale", 3, data["scales"]),
-                (f'{data_path_prefix}["trigger"]', 1, data["triggers"]),
-                (f'{data_path_prefix}["grip"]', 1, data["grips"]),
-                (f'{data_path_prefix}["thumbstick_x"]', 1, data["thumbstick_xs"]),
-                (f'{data_path_prefix}["thumbstick_y"]', 1, data["thumbstick_ys"]),
-                (f'{data_path_prefix}["button_a"]', 1, data["button_as"]),
-                (f'{data_path_prefix}["button_b"]', 1, data["button_bs"]),
-                (f'{data_path_prefix}["button_x"]', 1, data["button_xs"]),
-                (f'{data_path_prefix}["button_y"]', 1, data["button_ys"]),
             ]
         else:
             fcurve_props = [
                 ("location", 3, data["locs"]),
                 ("rotation_quaternion", 4, data["rots"]),
                 ("scale", 3, data["scales"]),
-                ('["trigger"]', 1, data["triggers"]),
-                ('["grip"]', 1, data["grips"]),
-                ('["thumbstick_x"]', 1, data["thumbstick_xs"]),
-                ('["thumbstick_y"]', 1, data["thumbstick_ys"]),
-                ('["button_a"]', 1, data["button_as"]),
-                ('["button_b"]', 1, data["button_bs"]),
-                ('["button_x"]', 1, data["button_xs"]),
-                ('["button_y"]', 1, data["button_ys"]),
             ]
 
         # Efficiently insert animation data by directly inserting it into the fcurves.
