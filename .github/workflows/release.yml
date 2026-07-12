@@ -25,8 +25,15 @@ jobs:
       - name: package
         run: |
           7z -bb1 a tracking_toolkit-latest.zip .\assets .\tracking_toolkit .\wheels .\__init__.py .\blender_manifest.toml .\LICENSE
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracking-toolkit
+          path: tracking_toolkit-latest.zip
+          compression-level: 0
           
-      - name: Create release
+      - name: create release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
         with:
