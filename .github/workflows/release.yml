@@ -1,5 +1,8 @@
 name: package.yml
 on:
+  pull_request:
+    types:
+      - synchronize  # New Commits
   push:
     branches:
       - "main"
