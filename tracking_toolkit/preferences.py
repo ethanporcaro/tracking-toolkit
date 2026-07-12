@@ -89,37 +89,91 @@ class PreferenceNaming(bpy.types.PropertyGroup):
     )
 
 
+class PreferenceInputMapping(bpy.types.PropertyGroup):
+    # Reusable types.
+    INPUT_TYPE_PROPERTY = bpy.props.EnumProperty(
+        name="Input Type",
+        items=[
+            ("Trigger", "Trigger", "Controller Trigger"),
+            ("Grip", "Grip", "Controller Grip"),
+            ("A", "A", "A Button"),
+            ("B", "B", "B Button"),
+            ("X", "X", "X Button"),
+            ("Y", "Y", "Y Button"),
+        ],
+    )
+    INPUT_ROLE_PROPERTY = bpy.props.EnumProperty(
+        name="Input Tracker Role",
+        items=[
+            ("None", "None", "None"),
+            *[(n, n, n) for i, n in enumerate(all_role_strings)],
+        ],
+    )
+
+    # Actual properties.
+    toggle_capture_role: INPUT_ROLE_PROPERTY
+    toggle_capture_input: INPUT_TYPE_PROPERTY
+    frame_forward_role: INPUT_ROLE_PROPERTY
+    frame_forward_input: INPUT_TYPE_PROPERTY
+    frame_backward_role: INPUT_ROLE_PROPERTY
+    frame_backward_input: INPUT_TYPE_PROPERTY
+
+
 class Preferences(bpy.types.AddonPreferences):
     bl_idname = base_package
 
     record_at_scene_fps: bpy.props.BoolProperty(default=True)
     record_custom_fps: bpy.props.IntProperty(default=24, min=1, max=120, soft_max=90)
 
+    input_mapping: bpy.props.PointerProperty(type=PreferenceInputMapping)
+
     naming: bpy.props.CollectionProperty(
         name="Default Tracker Nicknames", type=PreferenceNaming
     )
 
-    def draw(self, _):
-        layout = self.layout
+    def _draw_recording_options(self):
+        rec_box = self.layout.box()
+        rec_box.label(text="Recording Options", icon="TIME")
 
-        layout.label(text="Recording Options")
-
-        layout.prop(self, "record_at_scene_fps", text="Record at Scene FPS")
+        rec_box.prop(self, "record_at_scene_fps", text="Record at Scene FPS")
         if not self.record_at_scene_fps:
-            layout.prop(self, "record_custom_fps", text="Custom FPS")
-            layout.label(text="Warning: Using custom FPS. Subframes may be created.")
-        layout.label(text="High scene or custom FPS can cause performance issues.")
+            rec_box.prop(self, "record_custom_fps", text="Custom FPS")
+            rec_box.label(text="Warning: Using custom FPS. Subframes may be created.")
+        rec_box.label(text="High scene or custom FPS can cause performance issues.")
 
-        layout.separator_spacer()
+    def _draw_input_options(self):
+        ipt_box = self.layout.box()
+        ipt_box.label(text="Input Mapping", icon="MOUSE_LMB")
 
-        # Tracker nickname options.
+        def _draw_input_map(text: str, action_name: str):
+            """
+            Utility to draw a tracker role/input mapping.
+            """
+            row = ipt_box.row()
+            if getattr(self.input_mapping, f"{action_name}_role", None) == "None":
+                row.prop(self.input_mapping, f"{action_name}_role", text=text)
+                row.label(text="")
+            else:
+                row.prop(self.input_mapping, f"{action_name}_role", text=text)
+                row.prop(self.input_mapping, f"{action_name}_input", text="")
 
-        layout.label(text="Tracker Nicknames")
-        layout.label(
+        _draw_input_map("Start/Stop Capture", "toggle_capture")
+        _draw_input_map("Frame Forward", "frame_forward")
+        _draw_input_map("Frame Backward", "frame_backward")
+
+    def _draw_nickname_options(self):
+        nn_box = self.layout.box()
+        nn_box.label(text="Tracker Nicknames", icon="TEXT")
+        nn_box.label(
             text="These apply going forward, and will not replace the current nicknames in your scene."
         )
 
         for n in self.naming:
-            layout.prop(n, "nickname", text=n.role_string)
+            nn_box.prop(n, "nickname", text=n.role_string)
 
-        layout.operator(ResetNicknamesOperator.bl_idname, text="Reset Nicknames")
+        nn_box.operator(ResetNicknamesOperator.bl_idname, text="Reset Nicknames")
+
+    def draw(self, _):
+        self._draw_recording_options()
+        self._draw_input_options()
+        self._draw_nickname_options()

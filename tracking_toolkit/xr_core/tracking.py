@@ -5,13 +5,14 @@ import mathutils
 from bpy_extras import anim_utils
 
 from .actions import vive_role_strings
-from .core import start_xr, tick_xr, stop_xr
-from ..preferences import get_preferences
+from .core import start_xr, tick_xr, stop_xr, PoseData
+from ..preferences import get_preferences, PreferenceInputMapping
 from ..utils import get_context, get_state
 
 # Shared variables
 data_buffer = []
 should_stop = False
+armed_triggers = []
 
 
 def _update_tracker_list(poses):
@@ -79,12 +80,12 @@ def _clear_buffer():
     data_buffer.clear()
 
 
-def _get_buffer() -> list[tuple[datetime.datetime, dict[str, mathutils.Matrix]]]:
+def _get_buffer() -> list[tuple[datetime.datetime, dict[str, PoseData]]]:
     global data_buffer
     return data_buffer.copy()
 
 
-def _get_latest_poses() -> dict[str, mathutils.Matrix] | None:
+def _get_latest_poses() -> dict[str, PoseData] | None:
     global data_buffer
     if len(data_buffer) == 0:
         return None
@@ -120,7 +121,7 @@ def _apply_poses():
                 if not bone.get("ref_type") == "tracker":
                     continue
 
-                bone.matrix = pose
+                bone.matrix = pose.pose
 
         # Apply empty transforms.
         else:
@@ -131,12 +132,96 @@ def _apply_poses():
                 if not obj.get("ref_type") == "tracker":
                     continue
 
-                obj.matrix_world = pose
+                obj.matrix_world = pose.pose
+
+        # Handle actions.
+        _handle_actions(role_string, pose)
 
 
 def _pose_vis_timer():
     _apply_poses()
     return 1.0 / 60  # 60hz
+
+
+def _handle_actions(role_string: str, pose: PoseData):
+    """
+    Handle the events triggered by actions. The mapping is stored in the preferences menu.
+    """
+
+    # Calculate leaped values.
+
+    # Build data.
+    data = {
+        "Trigger": pose.trigger,
+        "Grip": pose.grip,
+        "A": pose.button_a,
+        "B": pose.button_b,
+        "X": pose.button_x,
+        "Y": pose.button_y,
+        "Thumbstick X": pose.thumbstick_x,
+        "Thumbstick Y": pose.thumbstick_y,
+    }
+
+    # Check actions.
+
+    xr_state = get_state()
+    preferences = get_preferences()
+    map_: PreferenceInputMapping = preferences.input_mapping
+
+    def _check_input(action_name: str) -> bool:
+        """
+        Utility to check if an action trigger is met.
+        """
+        role_prop = getattr(map_, f"{action_name}_role", None)
+        ipt_prop = getattr(map_, f"{action_name}_input", None)
+
+        if not role_prop or not ipt_prop:
+            return False
+
+        if role_prop != role_string:
+            return False
+
+        value = data.get(ipt_prop)
+        if value is None:
+            return False
+
+        is_pressed = float(value) >= 0.9
+
+        # Check if the trigger is armed.
+        # This means that it was held before.
+        # If it is no longer held, that triggers the event.
+        global armed_triggers
+
+        is_armed = action_name in armed_triggers
+
+        # If pressed and unarmed, arm the event.
+        if is_pressed:
+            if not is_armed:
+                print(f"Holding {action_name}...")
+                armed_triggers.append(action_name)
+
+        # If not pressed, and was armed before, fire event and disarm.
+        else:
+            if is_armed:
+                print(f"Triggered {action_name}!")
+                armed_triggers.remove(action_name)
+                return True
+
+        return False
+
+    if _check_input("toggle_capture"):
+        if xr_state.recording:
+            stop_recording()
+        else:
+            start_recording()
+
+    if _check_input("frame_forward"):
+        if not xr_state.recording:
+            bpy.context.scene.frame_current += 1
+
+    if _check_input("frame_backward"):
+        if not xr_state.recording:
+            bpy.context.scene.frame_current -= 1
 
 
 def _create_action(obj: bpy.types.Object, action_name: str):
@@ -260,8 +345,8 @@ def _insert_action():
                 continue
             prev_pose = prev_sample[name]
 
-            loc0, rot0, sca0 = prev_pose.decompose()
-            loc1, rot1, sca1 = next_pose.decompose()
+            loc0, rot0, sca0 = prev_pose.pose.decompose()
+            loc1, rot1, sca1 = next_pose.pose.decompose()
 
             loc_final = loc0.lerp(loc1, factor)
             rot_final = rot0.slerp(rot1, factor)  # Slerp for rotation.

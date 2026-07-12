@@ -368,13 +368,21 @@ def convert_bones_to_empties():
             fcurves = anim_utils.action_get_channelbag_for_slot(
                 empty_action, empty_action.slots[0]
             ).fcurves
-            for fcurve in fcurves:
-                # Only get the fcurve for the current tracker's bone.
-                if not fcurve.data_path.startswith(f'pose.bones["{nickname}"].'):
+            for fcurve in fcurves[:]:
+                # Remove copied fcurves that belong to other bones.
+                if not fcurve.data_path.startswith(f'pose.bones["{nickname}"]'):
                     fcurves.remove(fcurve)
                     continue
 
-                new_path = re.sub(r".+\.([^.]+)$", r"\1", fcurve.data_path)
+                new_path = re.sub(r".+]\.?(.+)$", r"\1", fcurve.data_path)
+
+                # Ensure custom prop exists.
+                # It is a custom prop if surrounded by brackets and quotes.
+                # Strip these brackets and quotes for the custom prop name.
+                if new_path.startswith('["'):
+                    prop_name = re.sub(r"\[\"(.+)\"]", r"\1", new_path)
+                    empty[prop_name] = float(0)
+
                 fcurve.data_path = new_path
 
             # If the armature had an active (non-strip) action, set it as active.
@@ -503,7 +511,19 @@ def convert_empties_to_bones():
             ).fcurves
 
             for empty_fcurve in empty_fcurves:
-                new_path = f'pose.bones["{nickname}"].{empty_fcurve.data_path}'
+                data_path = empty_fcurve.data_path
+
+                # If surrounded by quotes and brackets, this is a custom property fcurve.
+                # Ensure the custom property exists.
+                if empty_fcurve.data_path.startswith('["'):
+                    new_path = f'pose.bones["{nickname}"]{data_path}'
+                    prop_name = re.sub(r"\[\"(.+)\"]", r"\1", data_path)
+                    bone[prop_name] = float(0)
+
+                # Otherwise, standard channel (loc, rot, etc.)
+                # Use a dot instead of quotes and brackets.
+                else:
+                    new_path = f'pose.bones["{nickname}"].{data_path}'
 
                 # Remove existing fcurve if present.
                 arm_fcurve = arm_fcurves.find(new_path, index=empty_fcurve.array_index)
