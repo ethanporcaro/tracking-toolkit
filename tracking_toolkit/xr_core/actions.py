@@ -25,7 +25,6 @@ default_action_data = [
 
 # Vive tracker actions.
 vive_role_strings = [
-    "handheld_object",
     "left_foot",
     "right_foot",
     "left_shoulder",

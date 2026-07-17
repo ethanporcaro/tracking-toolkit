@@ -57,21 +57,11 @@ class CreateRefsOperator(bpy.types.Operator):
 
     @staticmethod
     def execute(self, context):
-        xr_state = get_state()
-
-        # Temporarily disable XR.
-        should_reenable = xr_state.enabled
-        if xr_state.enabled:
-            stop_preview()
-
         # Create references.
         if get_context().use_bones:
             create_bone_references()
         else:
             create_empty_references()
-
-        if should_reenable:
-            start_preview()
 
         print("Done")
         return {"FINISHED"}
