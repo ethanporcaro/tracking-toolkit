@@ -128,7 +128,10 @@ def start_xr():
         session_create_info=xr.SessionCreateInfo(),  # We need to reinitialize the default parameter.
     )
 
-    context.__enter__()
+    try:
+        context.__enter__()
+    except xr.exception.QualifiedSuccessResult:
+        pass
 
     # Save the runtime's name.
     properties = xr.get_instance_properties(context.instance)
@@ -258,7 +261,12 @@ def _get_time() -> xr.Time:
 
 def _poll_xr():
     context.exit_render_loop = False
-    context.poll_xr_events()
+
+    try:
+        context.poll_xr_events()
+    except xr.exception.QualifiedSuccessResult:
+        pass
+
     if context.exit_render_loop:
         return None
 
@@ -371,6 +379,9 @@ def stop_xr():
     if not context:
         return
 
-    context.__exit__(None, None, None)
+    try:
+        context.__exit__(None, None, None)
+    except xr.exception.QualifiedSuccessResult:
+        pass
 
     print("XR Tracking Stopped")
