@@ -4,17 +4,18 @@ import bpy
 import mathutils
 from bpy_extras import anim_utils
 
-from .actions import vive_role_strings
+from .actions import vive_role_strings, PoseData
 from .core import start_xr, tick_xr, stop_xr
-from ..preferences import get_preferences
+from ..preferences import get_preferences, PreferenceInputMapping
 from ..utils import get_context, get_state
 
 # Shared variables
 data_buffer = []
 should_stop = False
+armed_triggers = []
 
 
-def _update_tracker_list(poses):
+def _update_tracker_list(poses: dict[str, PoseData]):
     xr_context = get_context()
     xr_state = get_state()
 
@@ -79,12 +80,12 @@ def _clear_buffer():
     data_buffer.clear()
 
 
-def _get_buffer() -> list[tuple[datetime.datetime, dict[str, mathutils.Matrix]]]:
+def _get_buffer() -> list[tuple[datetime.datetime, dict[str, PoseData]]]:
     global data_buffer
     return data_buffer.copy()
 
 
-def _get_latest_poses() -> dict[str, mathutils.Matrix] | None:
+def _get_latest_data() -> dict[str, PoseData] | None:
     global data_buffer
     if len(data_buffer) == 0:
         return None
@@ -92,19 +93,92 @@ def _get_latest_poses() -> dict[str, mathutils.Matrix] | None:
     return data_buffer[-1][1]
 
 
+def _handle_actions(role_string: str, pose_data: PoseData):
+    """
+    Handle the events triggered by actions. The mapping is stored in the preferences menu.
+    """
+
+    # Calculate leaped values.
+
+    # Map data to preference key names.
+    data = {"Trigger": pose_data.trigger}
+
+    # Check actions.
+
+    xr_state = get_state()
+    preferences = get_preferences()
+    map_: PreferenceInputMapping = preferences.input_mapping
+
+    def _check_input(action_name: str) -> bool:
+        """
+        Utility to check if an action trigger is met.
+        """
+        role_prop = getattr(map_, f"{action_name}_role", None)
+        ipt_prop = getattr(map_, f"{action_name}_input", None)
+
+        if not role_prop or not ipt_prop:
+            return False
+
+        if role_prop != role_string:
+            return False
+
+        value = data.get(ipt_prop)
+        if value is None:
+            return False
+
+        is_pressed = float(value) >= 0.9
+
+        # Check if the trigger is armed.
+        # This means that it was held before.
+        # If it is no longer held, that triggers the event.
+        global armed_triggers
+
+        is_armed = action_name in armed_triggers
+
+        # If pressed and unarmed, arm the event.
+        if is_pressed:
+            if not is_armed:
+                armed_triggers.append(action_name)
+
+        # If not pressed, and was armed before, fire event and disarm.
+        else:
+            if is_armed:
+                print(f"Triggered {action_name}!")
+                armed_triggers.remove(action_name)
+                return True
+
+        return False
+
+    if _check_input("toggle_capture"):
+        if xr_state.recording:
+            stop_recording()
+        else:
+            start_recording()
+
+    if _check_input("frame_forward"):
+        if not xr_state.recording:
+            bpy.context.scene.frame_current += 1
+
+    if _check_input("frame_backward"):
+        if not xr_state.recording:
+            bpy.context.scene.frame_current -= 1
+
+
 def _apply_poses():
     # Don't preview when playing, since a previous recording may interfere
     if bpy.context.screen.is_animation_playing:
         return
 
-    pose_data = _get_latest_poses()
+    pose_data = _get_latest_data()
     if not pose_data:
         return
 
     xr_context = get_context()
 
     for role_string in pose_data.keys():
-        pose = pose_data[role_string]
+        data = pose_data[role_string]
+
+        _handle_actions(role_string, data)
 
         # Apply bone transforms.
         if xr_context.use_bones:
@@ -120,7 +194,7 @@ def _apply_poses():
                 if not bone.get("ref_type") == "tracker":
                     continue
 
-                bone.matrix = pose
+                bone.matrix = data.pose
 
         # Apply empty transforms.
         else:
@@ -131,7 +205,7 @@ def _apply_poses():
                 if not obj.get("ref_type") == "tracker":
                     continue
 
-                obj.matrix_world = pose
+                obj.matrix_world = data.pose
 
 
 def _pose_vis_timer():
@@ -233,7 +307,7 @@ def _insert_action():
             prev_sample = pose_data[closest_idx - 1][1]
             next_sample = pose_data[closest_idx][1]
 
-        for name, next_pose in next_sample.items():
+        for name, next_pose_data in next_sample.items():
             # Get the tracker.
             tracker_object = None
             for tracker in get_context().trackers:
@@ -258,10 +332,10 @@ def _insert_action():
 
             if name not in prev_sample:
                 continue
-            prev_pose = prev_sample[name]
+            prev_pose_data = prev_sample[name]
 
-            loc0, rot0, sca0 = prev_pose.decompose()
-            loc1, rot1, sca1 = next_pose.decompose()
+            loc0, rot0, sca0 = prev_pose_data.pose.decompose()
+            loc1, rot1, sca1 = next_pose_data.pose.decompose()
 
             loc_final = loc0.lerp(loc1, factor)
             rot_final = rot0.slerp(rot1, factor)  # Slerp for rotation.

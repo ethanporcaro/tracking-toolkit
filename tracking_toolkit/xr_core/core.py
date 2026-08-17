@@ -4,8 +4,15 @@ from pathlib import Path
 
 import bpy
 import mathutils
+from bpy.types import (
+    XrActionMapBinding,
+    XrActionMapItem,
+    XrActionMap,
+)
 
-from .actions import default_action_data, vive_tracker_action_data
+from .actions import default_action_data, vive_tracker_action_data, ActionData, PoseData
+
+ACTION_SET_NAME = "tracking_toolkit_controller"
 
 
 def _get_runtime_path() -> str:
@@ -42,6 +49,73 @@ def _get_runtime_path() -> str:
     return ""
 
 
+def _create_bindings(
+    name: str,
+    item: XrActionMapItem,
+    interaction_profile: str,
+    action_data: list[ActionData],
+) -> XrActionMapBinding | None:
+    for action_data_item in action_data:
+        if action_data_item.type == item.name:
+            item.user_paths.new(action_data_item.action_path)
+
+    bindings = item.bindings.new(name, True)
+    bindings.profile = interaction_profile
+
+    for action_data_item in action_data:
+        if action_data_item.type == item.name:
+            bindings.component_paths.new(action_data_item.subaction_path)
+
+    # Additional properties for float types.
+    if item.type == "FLOAT":
+        bindings.threshold = 0.3
+        bindings.axis0_region = "ANY"
+        bindings.axis1_region = "ANY"
+
+    return bindings
+
+
+def _add_bindings_for_profile(
+    vendor: str,
+    interaction_profile: str,
+    action_map: XrActionMap,
+    item: XrActionMapItem,
+    action_data: list[ActionData],
+):
+    """Add bindings for a specific interaction profile to an existing action."""
+
+    context = bpy.context
+    session_state = bpy.context.window_manager.xr_session_state
+
+    # Clear existing user_paths to rebuild them for this binding.
+    while len(item.user_paths) > 0:
+        item.user_paths.remove(item.user_paths[0])
+
+    # Add user paths for this action type.
+    for action_data_item in action_data:
+        if action_data_item.type == item.name:
+            item.user_paths.new(action_data_item.action_path)
+
+    # Create the binding.
+    bindings = item.bindings.new(f"{item.name}_{vendor}", True)
+    bindings.profile = interaction_profile
+
+    for action_data_item in action_data:
+        if action_data_item.type == item.name:
+            bindings.component_paths.new(action_data_item.subaction_path)
+
+    if item.type == "FLOAT":
+        bindings.threshold = 0.3
+        bindings.axis0_region = "ANY"
+        bindings.axis1_region = "ANY"
+
+    if not session_state.action_binding_create(context, action_map, item, bindings):
+        print(f"Failed to add {vendor} {item.name} binding.")
+        return False
+
+    return True
+
+
 def _init_xr(*_):
     context = bpy.context
     session_state = bpy.context.window_manager.xr_session_state
@@ -49,86 +123,67 @@ def _init_xr(*_):
     runtime_path = _get_runtime_path()
     print(f"OpenXR runtime path: {runtime_path}")
 
-    # Check if SteamVR is present using the runtime path.
-    # Ideally, bpy would expose the runtime name.
-    # Crashes occur if the tracker interaction profile is enabled outside SteamVR.
     use_trackers = (
         "steamvr" in runtime_path.lower() or "steamxr" in runtime_path.lower()
     )
     if use_trackers:
         print("Enabling Vive trackers.")
 
-    action_map = session_state.actionmaps.new(
-        session_state, "tracking_toolkit_controller", True
-    )
+    action_map = session_state.actionmaps.new(session_state, ACTION_SET_NAME, True)
     if not session_state.action_set_create(context, action_map):
         print(f"Failed to create action set.")
         return
 
-    item = action_map.actionmap_items.new("pose", True)
-    if not item:
-        print(f"Failed to create controller action item.")
+    # Create action map items.
+
+    pose_item = action_map.actionmap_items.new("pose", True)
+    if not pose_item:
+        print(f"Failed to create controller pose action item.")
         return
-    item.type = "POSE"
-    item.pose_is_controller_grip = True
+    pose_item.type = "POSE"
+    pose_item.pose_is_controller_grip = True
 
-    # Controllers.
+    trigger_item = action_map.actionmap_items.new("trigger", True)
+    if not trigger_item:
+        print(f"Failed to create trigger action item.")
+        return
+    trigger_item.type = "FLOAT"
 
-    for data in default_action_data:
-        item.user_paths.new(data.action_path)
+    # Add user paths from action data and create actions.
 
-    controller_binding = item.bindings.new("controllers", True)
-    controller_binding.profile = "/interaction_profiles/khr/simple_controller"
-    for data in default_action_data:
-        controller_binding.component_paths.new(data.subaction_path)
+    for action_data_item in default_action_data:
+        if action_data_item.type == "pose":
+            pose_item.user_paths.new(action_data_item.action_path)
+        elif action_data_item.type == "trigger":
+            trigger_item.user_paths.new(action_data_item.action_path)
 
-    # Trackers.
-
-    if use_trackers:
-        for data in vive_tracker_action_data:
-            item.user_paths.new(data.action_path)
-
-        tracker_binding = item.bindings.new("trackers", True)
-        tracker_binding.profile = "/interaction_profiles/htc/vive_tracker_htcx"
-        for data in vive_tracker_action_data:
-            tracker_binding.component_paths.new(data.subaction_path)
-
-    # Create actions and bindings.
-
-    if not session_state.action_create(context, action_map, item):
-        print(f"Failed to create action.")
+    if not session_state.action_create(context, action_map, pose_item):
+        print(f"Failed to create pose action.")
         return
 
-    # Workaround, since the length of user_paths must equal the number of action paths when creating bindings.
-    # However, the action_create call requires these to exist.
-    # If we don't clear here, user_paths accumulates both the controller and tracker paths, which mismatches when
-    # creating bindings.
-    for path in item.user_paths:
-        item.user_paths.remove(path)
-
-    for data in default_action_data:
-        item.user_paths.new(data.action_path)
-    if not session_state.action_binding_create(
-        context, action_map, item, controller_binding
-    ):
-        print(f"Failed to create controller binding.")
+    if not session_state.action_create(context, action_map, trigger_item):
+        print(f"Failed to create trigger action.")
         return
 
-    if use_trackers:
-        # Same workaround here.
-        for path in item.user_paths:
-            item.user_paths.remove(path)
+    # Add bindings for multiple profiles.
+    profiles = [
+        ("oculus", "/interaction_profiles/oculus/touch_controller"),
+        ("index", "/interaction_profiles/valve/index_controller"),
+        ("vive", "/interaction_profiles/htc/vive_controller"),
+        ("simple", "/interaction_profiles/khr/simple_controller"),
+    ]
 
-        for data in vive_tracker_action_data:
-            item.user_paths.new(data.action_path)
-        if not session_state.action_binding_create(
-            context, action_map, item, tracker_binding
-        ):
-            print(f"Failed to create tracker binding.")
-            return
+    for vendor, profile in profiles:
+        _add_bindings_for_profile(
+            vendor, profile, action_map, pose_item, default_action_data
+        )
+        if vendor != "simple":
+            _add_bindings_for_profile(
+                vendor, profile, action_map, trigger_item, default_action_data
+            )
 
     session_state.controller_pose_actions_set(
-        context, action_map.name, item.name, item.name
+        context, action_map.name, pose_item.name, pose_item.name
     )
     session_state.active_action_set_set(context, action_map.name)
 
@@ -152,7 +207,7 @@ def start_xr():
     print("Waiting to start...")
 
 
-def tick_xr():
+def tick_xr() -> dict[str, PoseData] | None:
     context = bpy.context
     session_state = bpy.context.window_manager.xr_session_state
     if not session_state:
@@ -170,7 +225,15 @@ def tick_xr():
         l_mat = mathutils.Matrix.Translation(location)
         s_mat = mathutils.Matrix.Scale(1, 4)
 
-        poses[data.name] = l_mat @ r_mat @ s_mat
+        pose = l_mat @ r_mat @ s_mat
+        trigger = session_state.action_state_get(
+            context, ACTION_SET_NAME, "trigger", data.action_path
+        )[0]
+        pose_data = PoseData(
+            pose=pose,
+            trigger=trigger,
+        )
+        poses[data.name] = pose_data
 
     return poses
 

@@ -60,6 +60,7 @@ def register():
 
     # Prefs
     bpy.utils.register_class(preferences.PreferenceNaming)
+    bpy.utils.register_class(preferences.PreferenceInputMapping)
     bpy.utils.register_class(preferences.ResetNicknamesOperator)
     bpy.utils.register_class(preferences.Preferences)
     preferences.initialize_preferences()
@@ -107,6 +108,7 @@ def unregister():
     # Prefs
     bpy.utils.unregister_class(preferences.Preferences)
     bpy.utils.unregister_class(preferences.ResetNicknamesOperator)
+    bpy.utils.unregister_class(preferences.PreferenceInputMapping)
     bpy.utils.unregister_class(preferences.PreferenceNaming)
 
     # Props

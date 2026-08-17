@@ -1,5 +1,8 @@
 import re
 from dataclasses import dataclass
+from typing import Literal
+
+import mathutils
 
 
 @dataclass
@@ -7,19 +10,40 @@ class ActionData:
     name: str
     action_path: str
     subaction_path: str
+    type: Literal["pose", "trigger"] = "pose"
+
+
+@dataclass
+class PoseData:
+    pose: mathutils.Matrix
+    trigger: float
 
 
 # Default actions.
 default_action_data = [
+    # Left Hand.
     ActionData(
         name="left_hand",
         action_path="/user/hand/left",
         subaction_path="/input/grip/pose",
     ),
     ActionData(
+        name="left_hand_trigger",
+        action_path="/user/hand/left",
+        subaction_path="/input/trigger/value",
+        type="trigger",
+    ),
+    # Right Hand.
+    ActionData(
         name="right_hand",
         action_path="/user/hand/right",
         subaction_path="/input/grip/pose",
+    ),
+    ActionData(
+        name="right_hand_trigger",
+        action_path="/user/hand/right",
+        subaction_path="/input/trigger/value",
+        type="trigger",
     ),
 ]
 
@@ -42,14 +66,24 @@ vive_role_strings = [
     "camera",
     "keyboard",
 ]
-vive_tracker_action_data = [
-    ActionData(
-        name=role,
-        action_path=f"/user/vive_tracker_htcx/role/{role}",
-        subaction_path="/input/grip/pose",
+
+vive_tracker_action_data = []
+for role in vive_role_strings:
+    vive_tracker_action_data.extend(
+        [
+            ActionData(
+                name=role,
+                action_path=f"/user/vive_tracker_htcx/role/{role}",
+                subaction_path="/input/grip/pose",
+            ),
+            ActionData(
+                name=f"{role}_trigger",
+                action_path=f"/user/vive_tracker_htcx/role/{role}",
+                subaction_path="/input/trigger/value",
+                type="trigger",
+            ),
+        ]
     )
-    for role in vive_role_strings
-]
 
 all_role_strings = ["head", "left_hand", "right_hand", *vive_role_strings]
 
