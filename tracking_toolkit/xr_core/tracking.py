@@ -10,7 +10,7 @@ from .actions import (
     default_action_data,
     vive_tracker_action_data,
 )
-from .core import start_xr, tick_xr, stop_xr
+from .core import start_xr, tick_xr, stop_xr, is_xr_running
 from ..preferences import get_preferences, PreferenceInputMapping
 from ..utils import get_context, get_state
 
@@ -23,8 +23,9 @@ armed_triggers = []
 def _update_tracker_list(poses: dict[str, PoseData]):
     xr_context = get_context()
     xr_state = get_state()
+    is_running = is_xr_running()
 
-    if not xr_state.enabled:
+    if not is_running:
         return
 
     # Check if trackers changed.
@@ -537,7 +538,6 @@ def stop_recording():
 def start_preview():
     _clear_buffer()
     start_xr()
-    get_state().enabled = True
 
     if not bpy.app.timers.is_registered(_xr_tick_timer):
         bpy.app.timers.register(_xr_tick_timer)
@@ -562,7 +562,6 @@ def stop_preview():
     _clear_buffer()
 
     xr_state = get_state()
-    xr_state.enabled = False
     xr_state.recording = False
 
     print("OpenXR Preview Stopped")

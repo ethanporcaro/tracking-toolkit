@@ -207,6 +207,14 @@ def start_xr():
     print("Waiting to start...")
 
 
+def is_xr_running() -> bool:
+    context = bpy.context
+    session_state = bpy.context.window_manager.xr_session_state
+    if not session_state:
+        return False
+    return session_state.is_running(context)
+
+
 def tick_xr() -> dict[str, PoseData] | None:
     context = bpy.context
     session_state = bpy.context.window_manager.xr_session_state

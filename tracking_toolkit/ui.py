@@ -1,6 +1,7 @@
 import bpy
 from bl_ui.space_view3d_toolbar import View3DPanel
 
+from .xr_core.core import is_xr_running
 from .utils import get_context, get_state
 from .operators import ToggleActiveOperator, CreateRefsOperator, ToggleRecordOperator
 
@@ -39,14 +40,14 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
 
     def draw(self, context: bpy.types.Context):
         layout = self.layout
+
         xr_context = get_context()
         xr_state = get_state()
+        is_running = is_xr_running()
 
         # Toggle active button
         # It's super annoying to have Blender not save the state of this button on save, so we just label it funny
-        activate_label = (
-            "Disconnect/Reset OpenXR" if xr_state.enabled else "Start/Connect OpenXR"
-        )
+        activate_label = "Stop OpenXR" if is_running else "Start OpenXR"
         layout.operator(ToggleActiveOperator.bl_idname, text=activate_label)
 
         # Trackers
@@ -82,8 +83,8 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         )
         layout.operator(CreateRefsOperator.bl_idname, text="Create References")
 
-        # Show the rest if OpenXr is running
-        if not xr_state.enabled:
+        # Show the rest if OpenXR is running
+        if not is_running:
             return
 
         # Recording

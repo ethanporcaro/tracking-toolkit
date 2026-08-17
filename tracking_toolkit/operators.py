@@ -1,5 +1,6 @@
 import bpy
 
+from .xr_core.core import is_xr_running
 from .utils import (
     check_refs,
     create_bone_references,
@@ -23,7 +24,7 @@ class ToggleRecordOperator(bpy.types.Operator):
         xr_state = get_state()
 
         # Double check state, though this should have been checked before
-        if not xr_state.enabled:
+        if not is_xr_running():
             return {"FINISHED"}
 
         if xr_state.recording:
@@ -42,7 +43,7 @@ class ToggleActiveOperator(bpy.types.Operator):
     bl_label = "Toggle OpenXR's tracking state"
 
     def execute(self, context):
-        if get_state().enabled:
+        if is_xr_running():
             stop_preview()
         else:
             start_preview()

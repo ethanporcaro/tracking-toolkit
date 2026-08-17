@@ -161,7 +161,6 @@ def get_timer_items():
 
 
 class XRState(bpy.types.PropertyGroup):
-    enabled: bpy.props.BoolProperty(name="OpenXR active", default=False)
     recording: bpy.props.BoolProperty(name="OpenXR recording", default=False)
     countdown: bpy.props.IntProperty(name="Countdown value")
     runtime: bpy.props.StringProperty(name="OpenXR runtime name", default="Unknown")
