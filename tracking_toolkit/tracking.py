@@ -55,16 +55,7 @@ def _xr_tick_timer():
         _update_tracker_list(poses)
         data_buffer.append([datetime.datetime.now(), poses])
 
-    # Calculate recording FPS.
-    # It may be a good idea to move this math outside the timer.
-
-    preferences = get_preferences()
-    if preferences.record_at_scene_fps:
-        framerate = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
-    else:
-        framerate = preferences.record_custom_fps
-
-    return 1.0 / framerate
+    return 1.0 / 90  # 90fps just for preview.
 
 
 def _clear_buffer():
@@ -202,7 +193,7 @@ def _apply_poses():
 
 def _pose_vis_timer():
     _apply_poses()
-    return 1.0 / 60  # 60hz
+    return 1.0 / 90  # 90fps.
 
 
 def _create_action(obj: bpy.types.Object, action_name: str):
