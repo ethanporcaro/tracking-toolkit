@@ -164,6 +164,11 @@ def _handle_actions(role_string: str, pose_data: PoseData):
         else:
             start_recording()
 
+    # Capture the current pose to the current keyframe.
+    if _check_input("single_capture"):
+        if not xr_state.recording:
+            _insert_keyframe(_get_latest_data())
+
     if _check_input("frame_forward"):
         if not xr_state.recording:
             bpy.context.scene.frame_current += 1
@@ -250,7 +255,56 @@ def _create_action(obj: bpy.types.Object, action_name: str):
     return action
 
 
-def _insert_action():
+def _insert_keyframe(pose_data: dict[str, PoseData]):
+    """Insert a single keyframe on the timeline."""
+
+    xr_context = get_context()
+
+    for name, data in pose_data.items():
+        # Get the tracker.
+        tracker_object = None
+        for tracker in get_context().trackers:
+            if tracker.naming.role_string == name:
+                tracker_object = tracker
+                break
+
+        if not tracker_object:
+            continue
+
+        nickname = tracker_object.naming.nickname
+
+        obj = None
+        if xr_context.use_bones:
+            arm = bpy.data.objects.get("XR Trackers")
+            if not arm:
+                print("Could not find armature. Data was not applied.")
+                return
+
+            bone = arm.pose.bones.get(nickname)
+            if not bone:
+                print(f"Could not find bone for {nickname}. Skipping.")
+                continue
+
+            obj = bone
+
+        else:
+            obj = bpy.data.objects.get(nickname)
+            if not obj:
+                print(f"No references found for {nickname}. Skipping.")
+                continue
+
+        def _insert_key(path: str, value):
+            obj[path] = value
+            obj.keyframe_insert(data_path=path)
+            obj.rotation_mode = "QUATERNION"
+
+        loc, rot, scale = data.pose.decompose()
+        _insert_key("location", data.pose.translation)
+        _insert_key("rotation_quaternion", rot)
+        _insert_key("scale", scale)
+
+
+def _insert_action(relative_time: bool = False):
     xr_context = get_context()
     preferences = get_preferences()
 
@@ -282,8 +336,12 @@ def _insert_action():
 
     animation_data = {}
     current_time = 0
-    frame = 0
     min_index = 0  # Checkpoint the "closest index" to avoid recalculations.
+
+    if relative_time:
+        frame = bpy.context.scene.frame_current
+    else:
+        frame = 0
 
     while current_time <= total_duration:
         # Get closest sample.

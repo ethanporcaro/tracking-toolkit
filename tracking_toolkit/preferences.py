@@ -114,6 +114,8 @@ class PreferenceInputMapping(bpy.types.PropertyGroup):
     # Actual properties.
     toggle_capture_role: INPUT_ROLE_PROPERTY
     toggle_capture_input: INPUT_TYPE_PROPERTY
+    single_capture_role: INPUT_ROLE_PROPERTY
+    single_capture_input: INPUT_TYPE_PROPERTY
     frame_forward_role: INPUT_ROLE_PROPERTY
     frame_forward_input: INPUT_TYPE_PROPERTY
     frame_backward_role: INPUT_ROLE_PROPERTY
@@ -163,8 +165,9 @@ class Preferences(bpy.types.AddonPreferences):
             icon="STATUS_WARNING",
         )
         _draw_input_map("Start/Stop Capture", "toggle_capture")
-        _draw_input_map("Frame Forward", "frame_forward")
+        _draw_input_map("Capture Single Frame", "single_capture")
         _draw_input_map("Frame Backward", "frame_backward")
+        _draw_input_map("Frame Forward", "frame_forward")
 
     def _draw_nickname_options(self):
         nn_box = self.layout.box()
