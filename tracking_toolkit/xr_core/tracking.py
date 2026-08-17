@@ -39,12 +39,14 @@ def _update_tracker_list(poses: dict[str, PoseData]):
             if role_string in current_tracker_roles:
                 continue
 
-            found_action_data = None
-            for a in [*default_action_data, *vive_tracker_action_data]:
-                if a.name == role_string and a.type == "pose":
-                    found_action_data = a
-            if not found_action_data:
-                continue
+            # If tracker is not head, make sure action is a pose and not a button.
+            if role_string != "head":
+                found_action_data = None
+                for a in [*default_action_data, *vive_tracker_action_data]:
+                    if a.name == role_string and a.type == "pose":
+                        found_action_data = a
+                if not found_action_data:
+                    continue
 
             # Apply default nicknames to this new tracker.
             nickname = "unknown"

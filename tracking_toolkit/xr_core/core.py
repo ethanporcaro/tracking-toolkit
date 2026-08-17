@@ -215,17 +215,19 @@ def tick_xr() -> dict[str, PoseData] | None:
 
     poses = {}
 
-    for i, data in enumerate([*default_action_data, *vive_tracker_action_data]):
-        location = session_state.controller_grip_location_get(context, i)
-        rotation = session_state.controller_grip_rotation_get(context, i)
-
+    def _create_mat(location, rotation):
         r_mat = mathutils.Matrix.Identity(3)
         r_mat.rotate(mathutils.Quaternion(mathutils.Vector(rotation)))
         r_mat.resize_4x4()
         l_mat = mathutils.Matrix.Translation(location)
         s_mat = mathutils.Matrix.Scale(1, 4)
+        return l_mat @ r_mat @ s_mat
 
-        pose = l_mat @ r_mat @ s_mat
+    for i, data in enumerate([*default_action_data, *vive_tracker_action_data]):
+        location = session_state.controller_grip_location_get(context, i)
+        rotation = session_state.controller_grip_rotation_get(context, i)
+
+        pose = _create_mat(location, rotation)
         trigger = session_state.action_state_get(
             context, ACTION_SET_NAME, "trigger", data.action_path
         )[0]
@@ -234,6 +236,13 @@ def tick_xr() -> dict[str, PoseData] | None:
             trigger=trigger,
         )
         poses[data.name] = pose_data
+
+    # Add head pose.
+    location = session_state.viewer_pose_location
+    rotation = session_state.viewer_pose_rotation
+    pose = _create_mat(location, rotation)
+    pose_data = PoseData(pose=pose, trigger=0)
+    poses["head"] = pose_data
 
     return poses
 
