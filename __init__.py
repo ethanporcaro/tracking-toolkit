@@ -16,7 +16,7 @@ if _needs_reload:
     import importlib
 
     utils = importlib.reload(utils)
-    actions = importlib.reload(protocol)
+    protocol = importlib.reload(protocol)
     properties = importlib.reload(properties)
     preferences = importlib.reload(preferences)
     operators = importlib.reload(operators)
