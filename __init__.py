@@ -41,14 +41,6 @@ def scene_update_callback(scene, _):
                 xr_context["selected_tracker"] = tracker.index
 
 
-@bpy.app.handlers.persistent
-def load_post_callback(*_):
-    """
-    Stop XR whenever a new file is loaded.
-    """
-    tracking.stop_preview()
-
-
 def register():
     print("Loading Tracking Toolkit...")
 
@@ -81,16 +73,12 @@ def register():
     # Handlers
     if scene_update_callback not in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.append(scene_update_callback)
-    if load_post_callback not in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.load_post.append(load_post_callback)
 
     print("Loaded Tracking Toolkit")
 
 
 def unregister():
     print("Unloading Tracking Toolkit...")
-
-    tracking.stop_preview()
 
     # UI
     bpy.utils.unregister_class(ui.PANEL_UL_TrackerList)
@@ -120,8 +108,6 @@ def unregister():
     # Handlers
     if scene_update_callback in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.remove(scene_update_callback)
-    if load_post_callback in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.remove(load_post_callback)
 
     print("Unloaded Tracking Toolkit")
 
