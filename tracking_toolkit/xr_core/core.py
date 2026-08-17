@@ -223,7 +223,12 @@ def tick_xr() -> dict[str, PoseData] | None:
         s_mat = mathutils.Matrix.Scale(1, 4)
         return l_mat @ r_mat @ s_mat
 
-    for i, data in enumerate([*default_action_data, *vive_tracker_action_data]):
+    pose_action_data = [
+        data
+        for data in [*default_action_data, *vive_tracker_action_data]
+        if data.type == "pose"
+    ]
+    for i, data in enumerate(pose_action_data):
         location = session_state.controller_grip_location_get(context, i)
         rotation = session_state.controller_grip_rotation_get(context, i)
 
