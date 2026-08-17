@@ -223,11 +223,11 @@ def tick_xr() -> dict[str, PoseData] | None:
 
     poses = {}
 
-    def _create_mat(location, rotation):
+    def _create_mat(location_, rotation_):
         r_mat = mathutils.Matrix.Identity(3)
-        r_mat.rotate(mathutils.Quaternion(mathutils.Vector(rotation)))
+        r_mat.rotate(mathutils.Quaternion(mathutils.Vector(rotation_)))
         r_mat.resize_4x4()
-        l_mat = mathutils.Matrix.Translation(location)
+        l_mat = mathutils.Matrix.Translation(location_)
         s_mat = mathutils.Matrix.Scale(1, 4)
         return l_mat @ r_mat @ s_mat
 

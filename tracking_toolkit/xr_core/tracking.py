@@ -16,13 +16,11 @@ from ..utils import get_context, get_state
 
 # Shared variables
 data_buffer = []
-should_stop = False
 armed_triggers = []
 
 
 def _update_tracker_list(poses: dict[str, PoseData]):
     xr_context = get_context()
-    xr_state = get_state()
     is_running = is_xr_running()
 
     if not is_running:
@@ -71,7 +69,7 @@ def _update_tracker_list(poses: dict[str, PoseData]):
 
 
 def _xr_tick_timer():
-    global data_buffer, should_stop
+    global data_buffer
 
     poses = tick_xr()
     if poses:

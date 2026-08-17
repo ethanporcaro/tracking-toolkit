@@ -1,6 +1,6 @@
 import bpy
 
-from .utils import convert_bones_to_empties, convert_empties_to_bones
+from .utils import convert_bones_to_empties, convert_empties_to_bones, get_context
 from .xr_core.actions import all_role_strings, reformat_role_string
 
 
@@ -43,7 +43,7 @@ def tracker_nickname_change(self, _):
                 f"Cannot rename {role_string} to an existing nickname or object: {new_nickname}."
             )
 
-    if bpy.context.scene.XRContext.use_bones:
+    if get_context().use_bones:
         armature = bpy.data.objects.get("XR Trackers")
         if armature:
             bones = armature.pose.bones
