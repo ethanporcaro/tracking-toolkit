@@ -11,9 +11,11 @@ from .utils import get_context, get_state
 # Shared variables
 data_buffer = []
 armed_triggers = []
+initial_poses = {}
 
 
 def _update_tracker_list(poses: dict[str, PoseData]):
+    global initial_poses
     xr_context = get_context()
     is_running = is_xr_running()
 
@@ -29,6 +31,22 @@ def _update_tracker_list(poses: dict[str, PoseData]):
         for i, role_string in enumerate(poses.keys()):
             # Don't touch existing.
             if role_string in current_tracker_roles:
+                continue
+
+            # Only add if the tracker has moved from its initial position.
+            loc = poses[role_string].pose.to_translation()
+
+            if role_string not in initial_poses:
+                # Sometimes disconnected trackers start at 0 then jump to some fixed position.
+                # Don't treat that jump as movement.
+                if loc.length == 0:
+                    continue
+
+                initial_poses[role_string] = loc.copy()
+                continue
+
+            distance = (loc - initial_poses[role_string]).length
+            if distance < 0.001:
                 continue
 
             # Apply default nicknames to this new tracker.
@@ -60,7 +78,9 @@ def _xr_tick_timer():
 
 def _clear_buffer():
     global data_buffer
+    global initial_poses
     data_buffer.clear()
+    initial_poses.clear()
 
 
 def _get_buffer() -> list[tuple[datetime.datetime, dict[str, PoseData]]]:
