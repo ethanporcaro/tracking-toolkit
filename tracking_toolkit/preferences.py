@@ -96,6 +96,10 @@ class PreferenceInputMapping(bpy.types.PropertyGroup):
         name="Input Type",
         items=[
             ("Trigger", "Trigger", "Controller Trigger"),
+            ("A", "A", "A Button"),
+            ("B", "B", "B Button"),
+            ("X", "X", "X Button"),
+            ("Y", "Y", "Y Button"),
         ],
         default="Trigger",
     )
@@ -154,6 +158,10 @@ class Preferences(bpy.types.AddonPreferences):
                 row.prop(self.input_mapping, f"{action_name}_role", text=text)
                 row.prop(self.input_mapping, f"{action_name}_input", text="")
 
+        ipt_box.label(
+            text="Not all buttons are supported across controllers/trackers.",
+            icon="STATUS_WARNING",
+        )
         _draw_input_map("Start/Stop Capture", "toggle_capture")
         _draw_input_map("Frame Forward", "frame_forward")
         _draw_input_map("Frame Backward", "frame_backward")

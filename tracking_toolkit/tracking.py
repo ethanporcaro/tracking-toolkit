@@ -104,7 +104,13 @@ def _handle_actions(role_string: str, pose_data: PoseData):
     # Calculate leaped values.
 
     # Map data to preference key names.
-    data = {"Trigger": pose_data.trigger}
+    data = {
+        "Trigger": pose_data.trigger,
+        "A": pose_data.button_a,
+        "B": pose_data.button_b,
+        "X": pose_data.button_x,
+        "Y": pose_data.button_y,
+    }
 
     # Check actions.
 

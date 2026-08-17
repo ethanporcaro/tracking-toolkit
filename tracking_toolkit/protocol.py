@@ -19,6 +19,10 @@ ACTION_SET_NAME = "tracking_toolkit"
 class PoseData:
     pose: mathutils.Matrix
     trigger: float
+    button_a: bool = False
+    button_b: bool = False
+    button_x: bool = False
+    button_y: bool = False
 
 
 @dataclass
@@ -26,7 +30,10 @@ class ActionData:
     name: str
     action_path: str
     subaction_path: str
-    type: Literal["pose", "trigger"] = "pose"
+    type: Literal["pose", "trigger", "button_a", "button_b", "button_x", "button_y"] = (
+        "pose"
+    )
+    vendors: tuple[str, ...] | None = None
 
 
 # Default actions.
@@ -43,6 +50,34 @@ default_action_data = [
         subaction_path="/input/trigger/value",
         type="trigger",
     ),
+    ActionData(
+        name="left_hand_a",
+        action_path="/user/hand/left",
+        subaction_path="/input/a/click",
+        type="button_a",
+        vendors=("index",),
+    ),
+    ActionData(
+        name="left_hand_b",
+        action_path="/user/hand/left",
+        subaction_path="/input/b/click",
+        type="button_b",
+        vendors=("index",),
+    ),
+    ActionData(
+        name="left_hand_x",
+        action_path="/user/hand/left",
+        subaction_path="/input/x/click",
+        type="button_x",
+        vendors=("oculus",),
+    ),
+    ActionData(
+        name="left_hand_y",
+        action_path="/user/hand/left",
+        subaction_path="/input/y/click",
+        type="button_y",
+        vendors=("oculus",),
+    ),
     # Right Hand.
     ActionData(
         name="right_hand",
@@ -54,6 +89,20 @@ default_action_data = [
         action_path="/user/hand/right",
         subaction_path="/input/trigger/value",
         type="trigger",
+    ),
+    ActionData(
+        name="right_hand_a",
+        action_path="/user/hand/right",
+        subaction_path="/input/a/click",
+        type="button_a",
+        vendors=("oculus", "index"),
+    ),
+    ActionData(
+        name="right_hand_b",
+        action_path="/user/hand/right",
+        subaction_path="/input/b/click",
+        type="button_b",
+        vendors=("oculus", "index"),
     ),
 ]
 
@@ -152,8 +201,6 @@ def _create_bindings(
     # Additional properties for float types.
     if item.type == "FLOAT":
         bindings.threshold = 0.3
-        bindings.axis0_region = "ANY"
-        bindings.axis1_region = "ANY"
 
     return bindings
 
@@ -175,9 +222,15 @@ def _add_bindings_for_profile(
         item.user_paths.remove(item.user_paths[0])
 
     # Add user paths for this action type.
+    paths_added = 0
     for action_data_item in action_data:
         if action_data_item.type == item.name:
-            item.user_paths.new(action_data_item.action_path)
+            if action_data_item.vendors is None or vendor in action_data_item.vendors:
+                item.user_paths.new(action_data_item.action_path)
+                paths_added += 1
+
+    if paths_added == 0:
+        return True  # Nothing to bind for this vendor
 
     # Create the binding.
     bindings = item.bindings.new(f"{item.name}_{vendor}", True)
@@ -185,12 +238,11 @@ def _add_bindings_for_profile(
 
     for action_data_item in action_data:
         if action_data_item.type == item.name:
-            bindings.component_paths.new(action_data_item.subaction_path)
+            if action_data_item.vendors is None or vendor in action_data_item.vendors:
+                bindings.component_paths.new(action_data_item.subaction_path)
 
     if item.type == "FLOAT":
         bindings.threshold = 0.3
-        bindings.axis0_region = "ANY"
-        bindings.axis1_region = "ANY"
 
     if not session_state.action_binding_create(context, action_map, item, bindings):
         print(f"Failed to add {vendor} {item.name} binding.")
@@ -227,10 +279,10 @@ def _init_xr(*_):
     pose_item.pose_is_controller_grip = True
 
     trigger_item = action_map.actionmap_items.new("trigger", True)
-    if not trigger_item:
-        print(f"Failed to create trigger action item.")
-        return
-    trigger_item.type = "FLOAT"
+    button_a_item = action_map.actionmap_items.new("button_a", True)
+    button_b_item = action_map.actionmap_items.new("button_b", True)
+    button_x_item = action_map.actionmap_items.new("button_x", True)
+    button_y_item = action_map.actionmap_items.new("button_y", True)
 
     # Add user paths from action data and create actions.
 
@@ -239,18 +291,21 @@ def _init_xr(*_):
         working_action_data.extend(vive_tracker_action_data)
 
     for action_data_item in working_action_data:
-        if action_data_item.type == "pose":
-            pose_item.user_paths.new(action_data_item.action_path)
-        elif action_data_item.type == "trigger":
-            trigger_item.user_paths.new(action_data_item.action_path)
+        item = action_map.actionmap_items.get(action_data_item.type)
+        if item is None:
+            print(f"Failed to find action item for {action_data_item.type}")
+            continue
+        item.user_paths.new(action_data_item.action_path)
 
     if not session_state.action_create(context, action_map, pose_item):
         print(f"Failed to create pose action.")
         return
 
-    if not session_state.action_create(context, action_map, trigger_item):
-        print(f"Failed to create trigger action.")
-        return
+    session_state.action_create(context, action_map, trigger_item)
+    session_state.action_create(context, action_map, button_a_item)
+    session_state.action_create(context, action_map, button_b_item)
+    session_state.action_create(context, action_map, button_x_item)
+    session_state.action_create(context, action_map, button_y_item)
 
     # Add bindings for multiple profiles.
     profiles = [
@@ -264,10 +319,24 @@ def _init_xr(*_):
         _add_bindings_for_profile(
             vendor, profile, action_map, pose_item, default_action_data
         )
-        if vendor != "simple":
-            _add_bindings_for_profile(
-                vendor, profile, action_map, trigger_item, default_action_data
-            )
+        if vendor == "simple":
+            break
+
+        _add_bindings_for_profile(
+            vendor, profile, action_map, trigger_item, default_action_data
+        )
+        _add_bindings_for_profile(
+            vendor, profile, action_map, button_a_item, default_action_data
+        )
+        _add_bindings_for_profile(
+            vendor, profile, action_map, button_b_item, default_action_data
+        )
+        _add_bindings_for_profile(
+            vendor, profile, action_map, button_x_item, default_action_data
+        )
+        _add_bindings_for_profile(
+            vendor, profile, action_map, button_y_item, default_action_data
+        )
 
     if use_trackers:
         _add_bindings_for_profile(
@@ -340,9 +409,30 @@ def tick_xr() -> dict[str, PoseData] | None:
         trigger = session_state.action_state_get(
             context, ACTION_SET_NAME, "trigger", data.action_path
         )[0]
+
+        button_a = session_state.action_state_get(
+            context, ACTION_SET_NAME, "button_a", data.action_path
+        )[0]
+
+        button_b = session_state.action_state_get(
+            context, ACTION_SET_NAME, "button_b", data.action_path
+        )[0]
+
+        button_x = session_state.action_state_get(
+            context, ACTION_SET_NAME, "button_x", data.action_path
+        )[0]
+
+        button_y = session_state.action_state_get(
+            context, ACTION_SET_NAME, "button_y", data.action_path
+        )[0]
+
         pose_data = PoseData(
             pose=pose,
             trigger=trigger,
+            button_a=button_a,
+            button_b=button_b,
+            button_x=button_x,
+            button_y=button_y,
         )
         poses[data.name] = pose_data
 
@@ -350,7 +440,14 @@ def tick_xr() -> dict[str, PoseData] | None:
     location = session_state.viewer_pose_location
     rotation = session_state.viewer_pose_rotation
     pose = _create_mat(location, rotation)
-    pose_data = PoseData(pose=pose, trigger=0)
+    pose_data = PoseData(
+        pose=pose,
+        trigger=0.0,
+        button_a=False,
+        button_b=False,
+        button_x=False,
+        button_y=False,
+    )
     poses["head"] = pose_data
 
     return poses
