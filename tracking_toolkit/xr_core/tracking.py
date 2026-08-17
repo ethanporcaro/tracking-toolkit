@@ -4,7 +4,12 @@ import bpy
 import mathutils
 from bpy_extras import anim_utils
 
-from .actions import vive_role_strings, PoseData
+from .actions import (
+    vive_role_strings,
+    PoseData,
+    default_action_data,
+    vive_tracker_action_data,
+)
 from .core import start_xr, tick_xr, stop_xr
 from ..preferences import get_preferences, PreferenceInputMapping
 from ..utils import get_context, get_state
@@ -32,6 +37,13 @@ def _update_tracker_list(poses: dict[str, PoseData]):
         for i, role_string in enumerate(poses.keys()):
             # Don't touch existing.
             if role_string in current_tracker_roles:
+                continue
+
+            found_action_data = None
+            for a in [*default_action_data, *vive_tracker_action_data]:
+                if a.name == role_string and a.type == "pose":
+                    found_action_data = a
+            if not found_action_data:
                 continue
 
             # Apply default nicknames to this new tracker.
