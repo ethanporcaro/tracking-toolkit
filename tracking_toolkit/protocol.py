@@ -12,7 +12,7 @@ from bpy.types import (
     XrActionMap,
 )
 
-ACTION_SET_NAME = "tracking_toolkit_controller"
+ACTION_SET_NAME = "tracking_toolkit"
 
 
 @dataclass
@@ -214,7 +214,7 @@ def _init_xr(*_):
 
     action_map = session_state.actionmaps.new(session_state, ACTION_SET_NAME, True)
     if not session_state.action_set_create(context, action_map):
-        print(f"Failed to create action set.")
+        print("Failed to create action set.")
         return
 
     # Create action map items.
@@ -234,7 +234,11 @@ def _init_xr(*_):
 
     # Add user paths from action data and create actions.
 
-    for action_data_item in default_action_data:
+    working_action_data = default_action_data.copy()
+    if use_trackers:
+        working_action_data.extend(vive_tracker_action_data)
+
+    for action_data_item in working_action_data:
         if action_data_item.type == "pose":
             pose_item.user_paths.new(action_data_item.action_path)
         elif action_data_item.type == "trigger":
@@ -264,6 +268,15 @@ def _init_xr(*_):
             _add_bindings_for_profile(
                 vendor, profile, action_map, trigger_item, default_action_data
             )
+
+    if use_trackers:
+        _add_bindings_for_profile(
+            "vive_tracker",
+            "/interaction_profiles/htc/vive_tracker_htcx",
+            action_map,
+            pose_item,
+            vive_tracker_action_data,
+        )
 
     session_state.controller_pose_actions_set(
         context, action_map.name, pose_item.name, pose_item.name
