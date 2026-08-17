@@ -4,15 +4,9 @@ import bpy
 import mathutils
 from bpy_extras import anim_utils
 
-from .actions import (
-    vive_role_strings,
-    PoseData,
-    default_action_data,
-    vive_tracker_action_data,
-)
-from .core import start_xr, tick_xr, stop_xr, is_xr_running
-from ..preferences import get_preferences, PreferenceInputMapping
-from ..utils import get_context, get_state
+from .preferences import get_preferences, PreferenceInputMapping
+from .protocol import start_xr, tick_xr, stop_xr, is_xr_running, PoseData
+from .utils import get_context, get_state
 
 # Shared variables
 data_buffer = []
@@ -32,20 +26,10 @@ def _update_tracker_list(poses: dict[str, PoseData]):
         tracker.naming.role_string for tracker in xr_context.trackers
     ]
     if set(new_trackers) != set(current_tracker_roles):
-
         for i, role_string in enumerate(poses.keys()):
             # Don't touch existing.
             if role_string in current_tracker_roles:
                 continue
-
-            # If tracker is not head, make sure action is a pose and not a button.
-            if role_string != "head":
-                found_action_data = None
-                for a in [*default_action_data, *vive_tracker_action_data]:
-                    if a.name == role_string and a.type == "pose":
-                        found_action_data = a
-                if not found_action_data:
-                    continue
 
             # Apply default nicknames to this new tracker.
             nickname = "unknown"
@@ -60,11 +44,6 @@ def _update_tracker_list(poses: dict[str, PoseData]):
             tracker.naming.role_string = role_string
             tracker.naming.nickname = nickname
             tracker.naming.prev_nickname = nickname
-            tracker.type = (
-                "tracker"
-                if role_string in vive_role_strings
-                else "hmd" if role_string == "head" else "controller"
-            )
             tracker.index = i
 
 

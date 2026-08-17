@@ -1,18 +1,18 @@
 import bpy
 
-from .xr_core.core import is_xr_running
+from .protocol import is_xr_running
+from .tracking import (
+    start_recording,
+    stop_recording,
+    start_preview,
+    stop_preview,
+)
 from .utils import (
     check_refs,
     create_bone_references,
     create_empty_references,
     get_context,
     get_state,
-)
-from .xr_core.tracking import (
-    start_recording,
-    stop_recording,
-    start_preview,
-    stop_preview,
 )
 
 

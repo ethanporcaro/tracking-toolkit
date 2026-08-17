@@ -1,6 +1,8 @@
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import bpy
 import mathutils
@@ -10,9 +12,90 @@ from bpy.types import (
     XrActionMap,
 )
 
-from .actions import default_action_data, vive_tracker_action_data, ActionData, PoseData
-
 ACTION_SET_NAME = "tracking_toolkit_controller"
+
+
+@dataclass
+class PoseData:
+    pose: mathutils.Matrix
+    trigger: float
+
+
+@dataclass
+class ActionData:
+    name: str
+    action_path: str
+    subaction_path: str
+    type: Literal["pose", "trigger"] = "pose"
+
+
+# Default actions.
+default_action_data = [
+    # Left Hand.
+    ActionData(
+        name="left_hand",
+        action_path="/user/hand/left",
+        subaction_path="/input/grip/pose",
+    ),
+    ActionData(
+        name="left_hand_trigger",
+        action_path="/user/hand/left",
+        subaction_path="/input/trigger/value",
+        type="trigger",
+    ),
+    # Right Hand.
+    ActionData(
+        name="right_hand",
+        action_path="/user/hand/right",
+        subaction_path="/input/grip/pose",
+    ),
+    ActionData(
+        name="right_hand_trigger",
+        action_path="/user/hand/right",
+        subaction_path="/input/trigger/value",
+        type="trigger",
+    ),
+]
+
+# Vive tracker actions.
+vive_role_strings = [
+    "left_foot",
+    "right_foot",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_knee",
+    "right_knee",
+    "left_wrist",  # Rev 3.
+    "right_wrist",  # Rev 3.
+    "left_ankle",  # Rev 3.
+    "right_ankle",  # Rev 3.
+    "waist",
+    "chest",
+    "camera",
+    "keyboard",
+]
+
+vive_tracker_action_data = []
+for role in vive_role_strings:
+    vive_tracker_action_data.extend(
+        [
+            ActionData(
+                name=role,
+                action_path=f"/user/vive_tracker_htcx/role/{role}",
+                subaction_path="/input/grip/pose",
+            ),
+            ActionData(
+                name=f"{role}_trigger",
+                action_path=f"/user/vive_tracker_htcx/role/{role}",
+                subaction_path="/input/trigger/value",
+                type="trigger",
+            ),
+        ]
+    )
+
+default_tracker_names = ["head", "left_hand", "right_hand", *vive_role_strings]
 
 
 def _get_runtime_path() -> str:
@@ -273,3 +356,7 @@ def stop_xr():
     bpy.ops.wm.xr_session_toggle()
 
     print("XR Tracking Stopped")
+
+
+def get_default_tracker_names():
+    return default_tracker_names

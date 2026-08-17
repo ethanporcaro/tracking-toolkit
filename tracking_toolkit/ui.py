@@ -1,9 +1,9 @@
 import bpy
 from bl_ui.space_view3d_toolbar import View3DPanel
 
-from .xr_core.core import is_xr_running
-from .utils import get_context, get_state
 from .operators import ToggleActiveOperator, CreateRefsOperator, ToggleRecordOperator
+from .protocol import is_xr_running
+from .utils import get_context, get_state
 
 
 class PANEL_UL_TrackerList(bpy.types.UIList):

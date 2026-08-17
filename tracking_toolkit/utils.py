@@ -22,6 +22,17 @@ def get_state() -> "XRState":
     return bpy.context.window_manager.XRState
 
 
+def reformat_role_string(role_string: str):
+    """
+    Reformat left/right nicknames to work better with bone symmetry.
+    """
+    new_nn = role_string
+    if re.match(f"(l(eft)?)|(r(ight)?)_", new_nn):
+        new_nn = re.sub(r"([lr])((eft)|(ight))?_(.+)", r"\5.\1", new_nn)
+
+    return new_nn
+
+
 def check_refs() -> bool:
     """
     Check if references exist for all trackers.

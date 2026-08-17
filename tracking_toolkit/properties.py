@@ -1,7 +1,12 @@
 import bpy
 
-from .utils import convert_bones_to_empties, convert_empties_to_bones, get_context
-from .xr_core.actions import all_role_strings, reformat_role_string
+from .protocol import default_tracker_names
+from .utils import (
+    convert_bones_to_empties,
+    convert_empties_to_bones,
+    get_context,
+    reformat_role_string,
+)
 
 
 def tracker_nickname_change(self, _):
@@ -20,7 +25,7 @@ def tracker_nickname_change(self, _):
         return
 
     # Nickname cannot be set to a default, unless it's the tracker's own.
-    if new_nickname in [reformat_role_string(rs) for rs in all_role_strings]:
+    if new_nickname in [reformat_role_string(rs) for rs in default_tracker_names]:
         # If we are renaming to another's.
         if new_nickname != default_name:
             # Revert to previous nickname (or default).

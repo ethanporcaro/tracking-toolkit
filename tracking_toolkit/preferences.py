@@ -1,6 +1,7 @@
 import bpy
 
-from .xr_core.actions import all_role_strings, reformat_role_string
+from .protocol import default_tracker_names
+from .utils import reformat_role_string
 from .. import __package__ as base_package
 
 
@@ -18,7 +19,7 @@ def initialize_preferences():
     """
     preferences = get_preferences()
 
-    for role_string in all_role_strings:
+    for role_string in default_tracker_names:
         # Skip existing.
         if role_string in [n.role_string for n in preferences.naming]:
             continue
@@ -68,7 +69,7 @@ def preference_nickname_change(self, _):
         )
 
     # Nickname cannot be set to a default, unless it's the tracker's own.
-    if new_nickname in [reformat_role_string(rs) for rs in all_role_strings]:
+    if new_nickname in [reformat_role_string(rs) for rs in default_tracker_names]:
         # If we are renaming to another's.
         if new_nickname != default_name:
             # Revert to previous nickname (or default).
@@ -102,7 +103,7 @@ class PreferenceInputMapping(bpy.types.PropertyGroup):
         name="Input Tracker Role",
         items=[
             ("None", "None", "None"),
-            *[(n, n, n) for i, n in enumerate(all_role_strings)],
+            *[(n, n, n) for i, n in enumerate(default_tracker_names)],
         ],
     )
 
