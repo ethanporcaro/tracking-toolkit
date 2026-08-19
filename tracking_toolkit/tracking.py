@@ -159,9 +159,11 @@ def _handle_actions(role_string: str, pose_data: PoseData):
         return False
 
     if _check_input("toggle_capture"):
+        bpy.ops.screen.animation_pause()
         if xr_state.recording:
             stop_recording()
         else:
+            bpy.context.scene.frame_set(0)
             start_recording()
 
     # Capture the current pose to the current keyframe.
@@ -177,12 +179,17 @@ def _handle_actions(role_string: str, pose_data: PoseData):
         if not xr_state.recording:
             bpy.context.scene.frame_current -= 1
 
+    if _check_input("playback"):
+        if not xr_state.recording:
+            if bpy.context.screen.is_animation_playing:
+                bpy.ops.screen.animation_pause()
+            else:
+                if map_.playback_restart:
+                    bpy.context.scene.frame_set(0)
+                bpy.ops.screen.animation_play()
+
 
 def _apply_poses():
-    # Don't preview when playing, since a previous recording may interfere
-    if bpy.context.screen.is_animation_playing:
-        return
-
     pose_data = _get_latest_data()
     if not pose_data:
         return
@@ -193,6 +200,10 @@ def _apply_poses():
         data = pose_data[role_string]
 
         _handle_actions(role_string, data)
+
+        # Don't preview when playing, since a previous recording may interfere.
+        if bpy.context.screen.is_animation_playing:
+            return
 
         # Apply bone transforms.
         if xr_context.use_bones:

@@ -120,6 +120,9 @@ class PreferenceInputMapping(bpy.types.PropertyGroup):
     frame_forward_input: INPUT_TYPE_PROPERTY
     frame_backward_role: INPUT_ROLE_PROPERTY
     frame_backward_input: INPUT_TYPE_PROPERTY
+    playback_role: INPUT_ROLE_PROPERTY
+    playback_input: INPUT_TYPE_PROPERTY
+    playback_restart: bpy.props.BoolProperty(default=False)
 
 
 class Preferences(bpy.types.AddonPreferences):
@@ -168,6 +171,16 @@ class Preferences(bpy.types.AddonPreferences):
         _draw_input_map("Capture Single Frame", "single_capture")
         _draw_input_map("Frame Backward", "frame_backward")
         _draw_input_map("Frame Forward", "frame_forward")
+        _draw_input_map("Start/Stop Playback", "playback")
+
+        ipt_box.separator()
+
+        ipt_box.label(text="Input Settings")
+        ipt_box.prop(
+            self.input_mapping,
+            "playback_restart",
+            text="Restart playback from beginning",
+        )
 
     def _draw_nickname_options(self):
         nn_box = self.layout.box()
