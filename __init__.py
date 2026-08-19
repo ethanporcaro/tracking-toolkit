@@ -75,6 +75,7 @@ def register():
     # UI
     bpy.utils.register_class(ui.PANEL_UL_TrackerList)
     bpy.utils.register_class(ui.RecorderPanel)
+    bpy.utils.register_class(ui.SessionSettingsPanel)
 
     # Handlers
     if scene_update_callback not in bpy.app.handlers.depsgraph_update_post:
@@ -87,8 +88,9 @@ def unregister():
     print("Unloading Tracking Toolkit...")
 
     # UI
-    bpy.utils.unregister_class(ui.PANEL_UL_TrackerList)
+    bpy.utils.unregister_class(ui.SessionSettingsPanel)
     bpy.utils.unregister_class(ui.RecorderPanel)
+    bpy.utils.unregister_class(ui.PANEL_UL_TrackerList)
 
     # Contexts
     del bpy.types.Scene.XRContext

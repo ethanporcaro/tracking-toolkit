@@ -31,12 +31,15 @@ class PANEL_UL_TrackerList(bpy.types.UIList):
             layout.prop(item, "hidden", icon="HIDE_OFF", icon_only=True, emboss=False)
 
 
-class RecorderPanel(View3DPanel, bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_openxr_recorder_menu"
-    bl_label = "Tracking Toolkit Recorder"
-    bl_category = "Track TK"
+class TTKPanel:
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
+    bl_category = "Track TK"
+
+
+class RecorderPanel(TTKPanel, bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_openxr_recorder_menu"
+    bl_label = "Tracking Toolkit Recorder"
 
     def draw(self, context: bpy.types.Context):
         layout = self.layout
@@ -122,3 +125,26 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         layout.prop(data=xr_context, property="timer", text="Delay")
         if xr_context.timer == "CUSTOM":
             layout.prop(data=xr_context, property="timer_custom", text="Seconds")
+
+
+class SessionSettingsPanel(TTKPanel, bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_openxr_settings_menu"
+    bl_label = "View Settings"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context: bpy.types.Context):
+
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+
+        # Replicate VR scene inspector, but simplified.
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "show_floor", text="Floor")
+        col.prop(session_settings, "show_passthrough", text="Passthrough")
+
+        col.prop(session_settings, "show_selection", text="Selection")
+        col.prop(session_settings, "show_controllers", text="Controllers")
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "view_scale", text="View Scale")
