@@ -1,3 +1,5 @@
+import math
+
 import bpy
 
 from .protocol import default_tracker_names
@@ -125,11 +127,53 @@ class PreferenceInputMapping(bpy.types.PropertyGroup):
     playback_restart: bpy.props.BoolProperty(default=False)
 
 
+def convert_fps(self, _):
+    """
+    Handle framerate conversion when timing type is changed.
+    """
+    scene_fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+
+    # Convert custom FPS to rounded interval.
+    if self.record_timing_type == "Interval":
+        custom_fps = self.record_custom_fps
+
+        interval = int(round(scene_fps / custom_fps))
+        self.record_custom_interval = interval
+
+    # Convert custom interval to FPS.
+    elif self.record_timing_type == "FPS":
+        custom_fps = int(round(scene_fps / self.record_custom_interval))
+        self.record_custom_fps = custom_fps
+
+    # Reset custom.
+    else:
+        self.record_custom_fps = int(scene_fps)
+        self.record_custom_interval = 1
+
+
 class Preferences(bpy.types.AddonPreferences):
     bl_idname = base_package
 
-    record_at_scene_fps: bpy.props.BoolProperty(default=True)
+    record_timing_type: bpy.props.EnumProperty(
+        name="Recording Framerate",
+        items=[
+            ("Scene", "Scene FPS", "Use Scene FPS"),
+            (
+                "FPS",
+                "Custom FPS",
+                "Use Custom FPS",
+            ),
+            (
+                "Interval",
+                "Custom Interval",
+                "Use Custom Interval on Scene FPS",
+            ),
+        ],
+        default="Scene",
+        update=convert_fps,
+    )
     record_custom_fps: bpy.props.IntProperty(default=24, min=1, max=120, soft_max=90)
+    record_custom_interval: bpy.props.IntProperty(default=1, min=1, soft_max=24)
 
     input_mapping: bpy.props.PointerProperty(type=PreferenceInputMapping)
 
@@ -141,11 +185,67 @@ class Preferences(bpy.types.AddonPreferences):
         rec_box = self.layout.box()
         rec_box.label(text="Recording Options", icon="TIME")
 
-        rec_box.prop(self, "record_at_scene_fps", text="Record at Scene FPS")
-        if not self.record_at_scene_fps:
-            rec_box.prop(self, "record_custom_fps", text="Custom FPS")
-            rec_box.label(text="Warning: Using custom FPS. Subframes may be created.")
-        rec_box.label(text="High scene or custom FPS can cause performance issues.")
+        row = rec_box.row()
+        row.prop(self, "record_timing_type", text="Recording Framerate")
+
+        scene_fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+
+        # If scene FPS is whole, convert to int for pretty display. Otherwise, round to 2 places.
+        display_scene_fps = scene_fps
+        if round(display_scene_fps) == display_scene_fps:
+            display_scene_fps = int(display_scene_fps)
+        else:
+            display_scene_fps = round(display_scene_fps, 2)
+
+        # Track working FPS for warnings at end.
+        working_fps = scene_fps
+
+        if self.record_timing_type == "FPS":
+            row.prop(self, "record_custom_fps", text="Custom FPS")
+
+            working_fps = self.record_custom_fps
+
+        elif self.record_timing_type == "Interval":
+            row.prop(self, "record_custom_interval", text="Custom Interval")
+            interval_fps = scene_fps / self.record_custom_interval
+
+            # If interval FPS is whole, convert to int. Otherwise, round to 2 places.
+            if round(interval_fps) == interval_fps:
+                interval_fps = round(interval_fps)
+            else:
+                interval_fps = round(interval_fps, 2)
+
+            rec_box.label(
+                text=f"Interval has {interval_fps} fps equivalent.",
+                icon="STATUS_INFO",
+            )
+
+            working_fps = interval_fps
+        else:
+
+            rec_box.label(
+                text=f"Current scene framerate is {display_scene_fps} fps.",
+                icon="STATUS_INFO",
+            )
+
+            row.label(text="")
+
+        # Subframe and high fps warnings.
+
+        multiplier = scene_fps / working_fps
+        is_inexact = round(multiplier) != multiplier
+        if is_inexact:
+            rec_box.label(
+                text=f"Combination of custom framerate ({working_fps} fps) "
+                f"and scene FPS ({display_scene_fps} fps) will create subframes.",
+                icon="STATUS_WARNING",
+            )
+
+        if working_fps > 48:
+            rec_box.label(
+                text="High scene or custom FPS may cause performance issues.",
+                icon="STATUS_WARNING",
+            )
 
     def _draw_input_options(self):
         ipt_box = self.layout.box()

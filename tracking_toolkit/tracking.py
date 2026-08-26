@@ -326,11 +326,15 @@ def _insert_action(relative_time: bool = False):
         print(f"OpenXR Found no samples to process")
         return
 
-    # Calculate recording FPS.
+    # Calculate recording FPS based on scene FPS and framerate type.
     scene_fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
-    record_fps = (
-        scene_fps if preferences.record_at_scene_fps else preferences.record_custom_fps
-    )
+    record_rate_type = preferences.record_timing_type
+    if record_rate_type == "FPS":
+        record_fps = preferences.record_custom_fps
+    elif record_rate_type == "Interval":
+        record_fps = round(scene_fps / preferences.record_custom_interval, 2)
+    else:
+        record_fps = scene_fps
 
     start_time = pose_data[0][0]
     end_time = pose_data[-1][0]
@@ -340,7 +344,7 @@ def _insert_action(relative_time: bool = False):
 
     # The samples might not be at the correct interval. Here, we go through each frame and linearly interpolate.
 
-    print("OpenXR Converting samples...")
+    print(f"OpenXR Converting samples at {record_fps}fps...")
     print(f"Frames: {total_frames}")
     print(f"Samples: {len(pose_data)}")
     print(f"Duration: {total_duration}")
