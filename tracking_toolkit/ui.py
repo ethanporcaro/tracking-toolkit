@@ -1,8 +1,9 @@
 import bpy
 from bl_ui.space_view3d_toolbar import View3DPanel
 
-from .utils import get_context, get_state
 from .operators import ToggleActiveOperator, CreateRefsOperator, ToggleRecordOperator
+from .protocol import is_xr_running
+from .utils import get_context, get_state
 
 
 class PANEL_UL_TrackerList(bpy.types.UIList):
@@ -30,23 +31,26 @@ class PANEL_UL_TrackerList(bpy.types.UIList):
             layout.prop(item, "hidden", icon="HIDE_OFF", icon_only=True, emboss=False)
 
 
-class RecorderPanel(View3DPanel, bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_openxr_recorder_menu"
-    bl_label = "Tracking Toolkit Recorder"
-    bl_category = "Track TK"
+class TTKPanel:
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
+    bl_category = "Track TK"
+
+
+class RecorderPanel(TTKPanel, bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_openxr_recorder_menu"
+    bl_label = "Tracking Toolkit Recorder"
 
     def draw(self, context: bpy.types.Context):
         layout = self.layout
+
         xr_context = get_context()
         xr_state = get_state()
+        is_running = is_xr_running()
 
         # Toggle active button
         # It's super annoying to have Blender not save the state of this button on save, so we just label it funny
-        activate_label = (
-            "Disconnect/Reset OpenXR" if xr_state.enabled else "Start/Connect OpenXR"
-        )
+        activate_label = "Stop OpenXR" if is_running else "Start OpenXR"
         layout.operator(ToggleActiveOperator.bl_idname, text=activate_label)
 
         # Trackers
@@ -82,8 +86,8 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         )
         layout.operator(CreateRefsOperator.bl_idname, text="Create References")
 
-        # Show the rest if OpenXr is running
-        if not xr_state.enabled:
+        # Show the rest if OpenXR is running
+        if not is_running:
             return
 
         # Recording
@@ -121,3 +125,26 @@ class RecorderPanel(View3DPanel, bpy.types.Panel):
         layout.prop(data=xr_context, property="timer", text="Delay")
         if xr_context.timer == "CUSTOM":
             layout.prop(data=xr_context, property="timer_custom", text="Seconds")
+
+
+class SessionSettingsPanel(TTKPanel, bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_openxr_settings_menu"
+    bl_label = "View Settings"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context: bpy.types.Context):
+
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+
+        # Replicate VR scene inspector, but simplified.
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "show_floor", text="Floor")
+        col.prop(session_settings, "show_passthrough", text="Passthrough")
+
+        col.prop(session_settings, "show_selection", text="Selection")
+        col.prop(session_settings, "show_controllers", text="Controllers")
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "view_scale", text="View Scale")

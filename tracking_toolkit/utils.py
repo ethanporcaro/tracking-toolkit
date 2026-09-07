@@ -22,6 +22,17 @@ def get_state() -> "XRState":
     return bpy.context.window_manager.XRState
 
 
+def reformat_role_string(role_string: str):
+    """
+    Reformat left/right nicknames to work better with bone symmetry.
+    """
+    new_nn = role_string
+    if re.match(f"(l(eft)?)|(r(ight)?)_", new_nn):
+        new_nn = re.sub(r"([lr])((eft)|(ight))?_(.+)", r"\5.\1", new_nn)
+
+    return new_nn
+
+
 def check_refs() -> bool:
     """
     Check if references exist for all trackers.
@@ -369,12 +380,25 @@ def convert_bones_to_empties():
                 empty_action, empty_action.slots[0]
             ).fcurves
             for fcurve in fcurves:
-                # Only get the fcurve for the current tracker's bone.
-                if not fcurve.data_path.startswith(f'pose.bones["{nickname}"].'):
+                # Remove copied fcurves that belong to other bones.
+                if not fcurve.data_path.startswith(f'pose.bones["{nickname}"]'):
                     fcurves.remove(fcurve)
                     continue
 
-                new_path = re.sub(r".+\.([^.]+)$", r"\1", fcurve.data_path)
+                subpath = fcurve.data_path.replace(f'pose.bones["{nickname}"]', "")
+
+                # Standard loc, rot, scale etc. property.
+                if subpath.startswith("."):
+                    new_path = subpath[1:]
+
+                # Custom property by name.
+                else:
+                    new_path = subpath
+
+                    # Make sure property exists on object.
+                    prop_name = re.sub(r"\[\"(.+)\"]", r"\1", subpath)
+                    empty[prop_name] = 0.0
+
                 fcurve.data_path = new_path
 
             # If the armature had an active (non-strip) action, set it as active.
@@ -503,7 +527,19 @@ def convert_empties_to_bones():
             ).fcurves
 
             for empty_fcurve in empty_fcurves:
-                new_path = f'pose.bones["{nickname}"].{empty_fcurve.data_path}'
+                orig_path = empty_fcurve.data_path
+
+                # Custom property path.
+                if orig_path.startswith('["'):
+                    new_path = f'pose.bones["{nickname}"]{orig_path}'
+
+                    # Make sure property exists on object.
+                    prop_name = orig_path[2:-2]  # Strip brackets and quotes.
+                    bone[prop_name] = 0.0
+
+                # Standard loc, rot, scale etc. property.
+                else:
+                    new_path = f'pose.bones["{nickname}"].{orig_path}'
 
                 # Remove existing fcurve if present.
                 arm_fcurve = arm_fcurves.find(new_path, index=empty_fcurve.array_index)

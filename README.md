@@ -6,24 +6,23 @@ with NLA integration and [SMPTE timecode](https://en.wikipedia.org/wiki/SMPTE_ti
 It allows camera/object tracking with high degrees of clarity,
 and can also track the movement of actors for motion capture.
 
-You can view the [demonstration video](https://youtu.be/W6DTAmQiJ4Q) on YouTube.
+You can view the [demonstration video](https://youtu.be/W6DTAmQiJ4Q) on YouTube. 
+There is also a [tutorial](https://youtu.be/watch?v=wcLYXi85080) available.
 
 If you'd like to see support for a new device, let me know! You can open an issue for any questions.
 
 ## Requirements
 
-Tracking Toolkit works with Blender 5.0 and later.
+Tracking Toolkit works with Blender 5.3 or later.
 
 Additionally, you will need an OpenXR runtime and a device to go with it.
 
-| Runtime   | Example Devices           | OpenGL | Vulkan |
-|-----------|---------------------------|--------|--------|
-| SteamVR   | Valve Index, HTC VIVE     | ✓      | ✓      |
-| Meta Link | Meta Quest 3, Oculus Rift | ✗      | ✓      |
-| VDXR      | Meta Quest 3, Vive Focus  | ✓      | ✓      |
-| Monado    | Open Source/Community     | ✓      | ✓      |
-
-Some runtimes do not support OpenGL as Blender's [Display Graphics Backend](https://docs.blender.org/manual/en/latest/editors/preferences/system.html#display-graphics).
+| Runtime   | Example Devices           |
+|-----------|---------------------------|
+| SteamVR   | Valve Index, HTC VIVE     |
+| Meta Link | Meta Quest 3, Oculus Rift |
+| VDXR      | Meta Quest 3, Vive Focus  |
+| Monado    | Open Source/Community     |
 
 ## Installation
 
@@ -43,9 +42,11 @@ The list below will populate with names of detected controllers/trackers.
 3) Press `Create References` to add the detected trackers to your scene. 
 This will create bones, but you can toggle the checkbox to create empties instead.
 
+
 4) At this point, a large `Start Recording` button will be visible. 
 When pressed, it will record the tracker's positions until you press stop.
 Existing recordings will be pushed down onto a new NLA strip and muted.
+You can also set an optional delay timer.
 
 <p>
 <img src="images/panel-quickstart.png" height="400px"/>
@@ -95,7 +96,6 @@ Each tracker will have two references:
 It will have the keyframe data when recording.
 Generally, it should be left untouched, as data will be overwritten when recording.
 
-
 * The offset point is a child of the tracking point. 
 It receives no data, and should be used for tweaking/aligning the tracker.
 Objects or cameras in your scene should be constrained to this offset, rather than the tracking point.
@@ -143,7 +143,7 @@ You may need to start with a fresh scene in those cases.
 
 **Q:** Can I view my scene in VR?
 
-**A:** No. There are technical limitations that would make this difficult, and there's no current plan to support it.
+**A:** Yes! Do note that complex scenes or render modes may cause performance issues.
 
 **Q:** Can I only use Vive Trackers without a headset?
 
@@ -161,8 +161,6 @@ If you have no headset attached at all, you may need to enable the Mock HMD driv
 Lead Developer & Maintainer [Ethan Porcaro](https://www.linkedin.com/in/ethan-porcaro/).
 
 Technical Art & Project Management [John Kraus](https://jrk.art).
-
-Special thanks to [Christopher Bruns](https://github.com/cmbruns) for the amazing [pyopenxr](https://github.com/cmbruns/pyopenxr) library.
 
 # Contributions
 
