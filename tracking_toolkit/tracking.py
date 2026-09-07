@@ -1,4 +1,5 @@
 import datetime
+from collections import defaultdict
 
 import bpy
 import mathutils
@@ -408,6 +409,7 @@ def _insert_action(relative_time: bool = False):
                     "locs": [],
                     "rots": [],
                     "scales": [],
+                    "extras": [],
                 }
 
             # Lerp pose.
@@ -433,6 +435,18 @@ def _insert_action(relative_time: bool = False):
             data["locs"].extend(loc)
             data["rots"].extend(rot)
             data["scales"].extend(scale)
+
+            # Add controller inputs.
+            if tracker_object.naming.role_string in ["left_hand", "right_hand"]:
+                data["extras"].append(
+                    {
+                        "trigger": prev_pose_data.trigger,
+                        "button_a": prev_pose_data.button_a,
+                        "button_b": prev_pose_data.button_b,
+                        "button_x": prev_pose_data.button_x,
+                        "button_y": prev_pose_data.button_y,
+                    }
+                )
 
         # Increment.
         current_time += 1 / record_fps
@@ -476,6 +490,7 @@ def _insert_action(relative_time: bool = False):
                 arm = bpy.data.objects.get("XR Trackers")
                 if not arm:
                     print("Could not find armature. Data was not applied.")
+                    continue
 
                 action = _create_action(arm, time_string)
 
@@ -491,19 +506,43 @@ def _insert_action(relative_time: bool = False):
 
         # Determine the property names for the fcurve channels we will put animation data into.
         # Armature actions are handled a little differently.
+        data_path_prefix = ""
+        if xr_context.use_bones:
+            data_path_prefix = f'pose.bones["{nickname}"].'
+
+        fcurve_props = [
+            (f"{data_path_prefix}location", 3, data["locs"]),
+            (f"{data_path_prefix}rotation_quaternion", 4, data["rots"]),
+            (f"{data_path_prefix}scale", 3, data["scales"]),
+        ]
+
+        # If using bones, remove the trailing dot (.) since we use bracket indexing for custom properties.
         if xr_context.use_bones:
             data_path_prefix = f'pose.bones["{nickname}"]'
-            fcurve_props = [
-                (f"{data_path_prefix}.location", 3, data["locs"]),
-                (f"{data_path_prefix}.rotation_quaternion", 4, data["rots"]),
-                (f"{data_path_prefix}.scale", 3, data["scales"]),
-            ]
-        else:
-            fcurve_props = [
-                ("location", 3, data["locs"]),
-                ("rotation_quaternion", 4, data["rots"]),
-                ("scale", 3, data["scales"]),
-            ]
+
+        # Add extra channels.
+        extra_sample_map = defaultdict(list)
+        for extra_sample in data["extras"]:
+            for k, v in extra_sample.items():
+                extra_sample_map[k].append(v)
+        for k, buffer in extra_sample_map.items():
+            fcurve_props.append((f'{data_path_prefix}["{k}"]', 1, buffer))
+
+        # Make sure custom properties exist.
+        for prop_name in extra_sample_map.keys():
+            if xr_context.use_bones:
+                arm = bpy.data.objects.get("XR Trackers")
+                bone = arm.pose.bones.get(nickname)
+                if not bone:
+                    continue
+                obj = bone
+            else:
+                empty = bpy.data.objects.get(nickname)
+                if not empty:
+                    continue
+                obj = empty
+
+            obj[prop_name] = 0.0
 
         # Efficiently insert animation data by directly inserting it into the fcurves.
         for data_path, num_components, values in fcurve_props:
